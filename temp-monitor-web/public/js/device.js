@@ -5,7 +5,7 @@ function statusText(value) {
 
 async function loadDevice() {
   try {
-    const d = await getJSON(API.device);
+    const d = await getJSON(SERVO_API_TOKEN);
 
     document.getElementById("deviceOnline").textContent = statusText(d.online);
     document.getElementById("wifi").textContent = statusText(d.wifi_status);

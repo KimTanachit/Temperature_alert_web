@@ -399,16 +399,34 @@ app.post("/api/sensor/temperature", async (req, res) => {
 // =====================================================
 
 app.get("/api/device/status", async (req, res) => {
-  const online =
-    lastSensorSeen &&
-    Date.now() - lastSensorSeen.getTime() < 15000;
+  // 1. เช็คว่าออนไลน์ไหม (Arduino ส่งทุก 60 วินาที เราตั้งเผื่อให้เป็น 70 วินาที หรือ 70000 ms)
+  const isOnline =
+    lastSensorSeen && Date.now() - lastSensorSeen.getTime() < 70000;
 
+  // 2. ดึงข้อมูลสถานะล่าสุดจากตาราง device_status ใน Supabase
+  const { data, error } = await supabase
+    .from("device_status")
+    .select("*")
+    .eq("id", 1)
+    .single();
+
+  // ถ้าดึงข้อมูลจาก DB ไม่สำเร็จ ให้ส่งแค่ออนไลน์กับเวลาล่าสุดไปก่อน
+  if (error || !data) {
+    return res.json({
+      online: !!isOnline,
+      last_seen: lastSensorSeen,
+    });
+  }
+
+  // 3. ส่งข้อมูลทั้งหมดให้หน้าเว็บ (ถ้าขาดการติดต่อไปแล้ว ให้มองว่า WiFi และ Sensor ออฟไลน์ไปด้วย)
   res.json({
-    online: !!online,
-    last_seen: lastSensorSeen,
+    online: !!isOnline,
+    wifi_status: isOnline ? data.wifi_status : false,
+    controller_online: !!isOnline,
+    sensor_status: isOnline ? data.sensor_status : false,
+    last_seen: data.last_seen || lastSensorSeen,
   });
 });
-
 // =====================================================
 // SETTINGS GET
 // =====================================================
