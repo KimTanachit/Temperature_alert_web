@@ -1,5 +1,5 @@
 const API_URL = "https://temperature-alert-web-1.onrender.com/api/sensor/temperature";
-const SENSOR_API_KEY = "my-secret-sensor-key";
+const SENSOR_API_KEY = "SensorT22";
 
 let temperature = 70;
 let direction = 1;
