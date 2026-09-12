@@ -236,6 +236,13 @@ body {
     color: white;
 }
 
+.range-btn-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
 .table-panel {
     overflow: auto;
 }
