@@ -339,10 +339,10 @@
             }
         }
 
-        bindHoldButton("btnUp", 0, -1);
-        bindHoldButton("btnDown", 0, 1);
-        bindHoldButton("btnLeft", -1, 0);
-        bindHoldButton("btnRight", 1, 0);
+        bindHoldButton("btnUp", 0, 1);
+        bindHoldButton("btnDown", 0, -1);
+        bindHoldButton("btnLeft", 1, 0);
+        bindHoldButton("btnRight", -1, 0);
 
         document.getElementById("btnStop").addEventListener("click", stopCamera);
         window.addEventListener("blur", stopCamera);
