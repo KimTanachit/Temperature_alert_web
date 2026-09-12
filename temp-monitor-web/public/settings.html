@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>ตั้งค่าระบบ</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <!-- Top Bar -->
+    <header class="topbar">
+
+        <button class="menu-btn" id="menuBtn">
+            ☰
+        </button>
+
+        <div class="top-title">
+            ระบบแจ้งเตือนอุณหภูมิ
+        </div>
+
+        <div class="top-user">
+            🔔 ผู้ดูแลระบบ 👤
+        </div>
+
+    </header>
+
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+
+        <div class="brand">
+
+            🔥
+
+            <span>
+                ระบบแจ้งเตือนอุณหภูมิ
+            </span>
+
+            <small>
+                FIRE & TEMPERATURE MONITOR
+            </small>
+
+        </div>
+
+
+        <nav>
+
+            <a href="index.html">
+                หน้าหลัก
+            </a>
+
+            <a href="temperature.html">
+                อุณหภูมิ
+            </a>
+
+            <a href="history.html">
+                ประวัติการแจ้งเตือน
+            </a>
+
+            <a href="device.html">
+                สถานะอุปกรณ์
+            </a>
+
+            <a class="active" href="settings.html">
+                ตั้งค่าระบบ
+            </a>
+
+            <a href="about.html">
+                เกี่ยวกับ
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-footer">
+            “ระบบแจ้งเตือนอัจฉริยะ”
+        </div>
+
+    </aside>
+
+
+    <!-- Main Content -->
+    <main class="content">
+
+        <!-- Page Header -->
+        <section class="page-head">
+
+            <div>
+
+                <h1>
+                    ตั้งค่าระบบ
+                </h1>
+
+                <p>
+                    กำหนดค่าแจ้งเตือนและการแจ้งเตือน
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- Settings -->
+        <div class="settings-grid">
+
+            <!-- Alert Control Settings -->
+            <section class="settings-box">
+
+                <h2>
+                    ตั้งค่าควบคุมแจ้งเตือน
+                </h2>
+
+
+                <label>
+
+                    แจ้งเตือนเมื่ออุณหภูมิสูงกว่า (°C)
+
+                    <input
+                        type="number"
+                        id="dangerThreshold"
+                        value="100"
+                    >
+
+                </label>
+
+
+                <label>
+
+                    ค่าปลดการแจ้งเตือน (°C)
+
+                    <input
+                        type="number"
+                        id="resetThreshold"
+                        value="100"
+                    >
+
+                </label>
+
+
+                <p class="warning-note">
+                    ⚠️ เมื่ออุณหภูมิถึงระดับอันตราย
+                    ระบบจะแจ้งเตือนทันที
+                </p>
+
+
+                <button
+                    class="save-btn"
+                    id="saveSettings"
+                >
+                    บันทึกการตั้งค่า
+                </button>
+
+            </section>
+
+
+            <!-- Notification Settings -->
+            <section class="settings-box">
+
+                <h2>
+                    การแจ้งเตือน
+                </h2>
+
+
+                <label class="toggle-row">
+
+                    🔊 เสียงการแจ้งเตือน
+
+                    <input
+                        type="checkbox"
+                        checked
+                    >
+
+                </label>
+
+
+                <label class="toggle-row">
+
+                    🔔 แจ้งเตือนหน้าเว็บ
+
+                    <input
+                        type="checkbox"
+                        checked
+                    >
+
+                </label>
+
+
+                <label class="toggle-row">
+
+                    💬 แจ้งเตือนผ่าน LINE
+
+                    <input
+                        type="checkbox"
+                        checked
+                    >
+
+                </label>
+
+            </section>
+
+        </div>
+
+    </main>
+
+
+    <!-- JavaScript -->
+    <script src="js/common.js"></script>
+
+    <script src="js/settings.js"></script>
+
+</body>
+
+</html>

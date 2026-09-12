@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>ประวัติการแจ้งเตือน</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <!-- Top Bar -->
+    <header class="topbar">
+
+        <button class="menu-btn" id="menuBtn">
+            ☰
+        </button>
+
+        <div class="top-title">
+            ระบบแจ้งเตือนอุณหภูมิ
+        </div>
+
+        <div class="top-user">
+            🔔 ผู้ดูแลระบบ 👤
+        </div>
+
+    </header>
+
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+
+        <div class="brand">
+
+            🔥
+
+            <span>
+                ระบบแจ้งเตือนอุณหภูมิ
+            </span>
+
+            <small>
+                FIRE & TEMPERATURE MONITOR
+            </small>
+
+        </div>
+
+
+        <nav>
+
+            <a href="index.html">
+                หน้าหลัก
+            </a>
+
+            <a href="temperature.html">
+                อุณหภูมิ
+            </a>
+
+            <a class="active" href="history.html">
+                ประวัติการแจ้งเตือน
+            </a>
+
+            <a href="device.html">
+                สถานะอุปกรณ์
+            </a>
+
+            <a href="settings.html">
+                ตั้งค่าระบบ
+            </a>
+
+            <a href="about.html">
+                เกี่ยวกับ
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-footer">
+            “ระบบแจ้งเตือนอัจฉริยะ”
+        </div>
+
+    </aside>
+
+
+    <!-- Main Content -->
+    <main class="content">
+
+        <!-- Page Header -->
+        <section class="page-head">
+
+            <div>
+
+                <h1>
+                    ประวัติการแจ้งเตือน
+                </h1>
+
+                <p>
+                    รายการเหตุการณ์อุณหภูมิเกินเกณฑ์
+                </p>
+
+            </div>
+
+
+            <!-- Filter -->
+            <div class="filter">
+
+                <input
+                    type="date"
+                    id="dateFilter"
+                >
+
+                <input
+                    type="search"
+                    id="search"
+                    placeholder="ค้นหา..."
+                >
+
+            </div>
+
+        </section>
+
+
+        <!-- History Table -->
+        <section class="panel table-panel">
+
+            <table>
+
+                <thead>
+
+                    <tr>
+
+                        <th>
+                            ลำดับ
+                        </th>
+
+                        <th>
+                            วัน / เวลา
+                        </th>
+
+                        <th>
+                            อุณหภูมิ (°C)
+                        </th>
+
+                        <th>
+                            ระดับการแจ้งเตือน
+                        </th>
+
+                        <th>
+                            สถานะ LINE
+                        </th>
+
+                        <th>
+                            รายละเอียด
+                        </th>
+
+                    </tr>
+
+                </thead>
+
+
+                <tbody id="historyBody">
+
+                    <tr>
+
+                        <td colspan="6">
+                            กำลังโหลด...
+                        </td>
+
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </section>
+
+    </main>
+
+
+    <!-- JavaScript -->
+    <script src="js/common.js"></script>
+
+    <script src="js/history.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+
+    <title>ข้อมูลอุณหภูมิ</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <!-- Top Bar -->
+    <header class="topbar">
+
+        <button class="menu-btn" id="menuBtn">
+            ☰
+        </button>
+
+        <div class="top-title">
+            ระบบแจ้งเตือนอุณหภูมิ
+        </div>
+
+        <div class="top-user">
+            🔔 ผู้ดูแลระบบ 👤
+        </div>
+
+    </header>
+
+
+    <!-- Sidebar -->
+    <aside class="sidebar" id="sidebar">
+
+        <div class="brand">
+
+            🔥
+
+            <span>
+                ระบบแจ้งเตือนอุณหภูมิ
+            </span>
+
+            <small>
+                FIRE & TEMPERATURE MONITOR
+            </small>
+
+        </div>
+
+
+        <nav>
+
+            <a href="index.html">
+                หน้าหลัก
+            </a>
+
+            <a class="active" href="temperature.html">
+                อุณหภูมิ
+            </a>
+
+            <a href="history.html">
+                ประวัติการแจ้งเตือน
+            </a>
+
+            <a href="device.html">
+                สถานะอุปกรณ์
+            </a>
+
+            <a href="settings.html">
+                ตั้งค่าระบบ
+            </a>
+
+            <a href="about.html">
+                เกี่ยวกับ
+            </a>
+
+        </nav>
+
+
+        <div class="sidebar-footer">
+            “ระบบแจ้งเตือนอัจฉริยะ”
+        </div>
+
+    </aside>
+
+
+    <!-- Main Content -->
+    <main class="content">
+
+        <!-- Page Header -->
+        <section class="page-head">
+
+            <div>
+
+                <h1>
+                    ข้อมูลอุณหภูมิ
+                </h1>
+
+                <p>
+                    การแสดงข้อมูลอุณหภูมิและแนวโน้มย้อนหลัง
+                </p>
+
+            </div>
+
+        </section>
+
+
+        <!-- Temperature Statistics -->
+        <section class="cards four">
+
+            <!-- Current Temperature -->
+            <article class="stat-card">
+
+                <div class="icon thermometer">
+                    🌡️
+                </div>
+
+                <div>
+
+                    <span>
+                        อุณหภูมิปัจจุบัน
+                    </span>
+
+                    <strong id="currentTemp">
+                        -- °C
+                    </strong>
+
+                </div>
+
+            </article>
+
+
+            <!-- Maximum Temperature -->
+            <article class="stat-card">
+
+                <div class="icon up">
+                    ↑
+                </div>
+
+                <div>
+
+                    <span>
+                        อุณหภูมิสูงสุด
+                    </span>
+
+                    <strong id="maxTemp">
+                        -- °C
+                    </strong>
+
+                </div>
+
+            </article>
+
+
+            <!-- Minimum Temperature -->
+            <article class="stat-card">
+
+                <div class="icon down">
+                    ↓
+                </div>
+
+                <div>
+
+                    <span>
+                        อุณหภูมิต่ำสุด
+                    </span>
+
+                    <strong id="minTemp">
+                        -- °C
+                    </strong>
+
+                </div>
+
+            </article>
+
+
+            <!-- Average Temperature -->
+            <article class="stat-card">
+
+                <div class="icon sum">
+                    Σ
+                </div>
+
+                <div>
+
+                    <span>
+                        ค่าเฉลี่ย
+                    </span>
+
+                    <strong id="avgTemp">
+                        -- °C
+                    </strong>
+
+                </div>
+
+            </article>
+
+        </section>
+
+
+        <!-- Temperature Chart -->
+        <section class="panel chart-panel">
+
+            <div class="panel-head">
+
+                <h2>
+                    กราฟอุณหภูมิ
+                </h2>
+
+
+                <div>
+
+                    <button
+                        class="range-btn active"
+                        data-minutes="1440"
+                    >
+                        24 ชั่วโมง
+                    </button>
+
+                    <button
+                        class="range-btn"
+                        data-minutes="10080"
+                    >
+                        7 วัน
+                    </button>
+
+                    <button
+                        class="range-btn"
+                        data-minutes="43200"
+                    >
+                        30 วัน
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div class="chart-wrap">
+
+                <canvas id="tempChart"></canvas>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <!-- JavaScript -->
+
+    <!-- Socket.IO -->
+    <script src="/socket.io/socket.io.js"></script>
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Common JavaScript -->
+    <script src="js/common.js"></script>
+
+    <!-- Temperature JavaScript -->
+    <script src="js/temperature.js"></script>
+
+</body>
+
+</html>

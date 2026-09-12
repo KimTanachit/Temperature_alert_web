@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ระบบแจ้งเตือนอุณหภูมิ - หน้าหลัก</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <button class="menu-btn" id="menuBtn">☰</button>
+    <div class="top-title">ระบบแจ้งเตือนอุณหภูมิ</div>
+    <div class="top-user">🔔 &nbsp; ผู้ดูแลระบบ &nbsp; 👤</div>
+  </header>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">🔥 <span>ระบบแจ้งเตือนอุณหภูมิ</span><small>FIRE & TEMPERATURE MONITOR</small></div>
+    <nav>
+      <a class="active" href="index.html">หน้าหลัก</a>
+      <a href="temperature.html">อุณหภูมิ</a>
+      <a href="history.html">ประวัติการแจ้งเตือน</a>
+      <a href="device.html">สถานะอุปกรณ์</a>
+      <a href="settings.html">ตั้งค่าระบบ</a>
+      <a href="about.html">เกี่ยวกับ</a>
+    </nav>
+    <div class="sidebar-footer">“ระบบแจ้งเตือนอัจฉริยะ”</div>
+  </aside>
+
+  <main class="content">
+    <section class="page-head">
+      <div><h1>หน้าหลัก</h1><p>ภาพรวมระบบตรวจวัดและแจ้งเตือนอุณหภูมิ</p></div>
+      <span id="connectionBadge" class="badge offline">กำลังเชื่อมต่อ...</span>
+    </section>
+
+    <section class="cards">
+      <article class="stat-card">
+        <div class="icon thermometer">🌡️</div>
+        <div><span>อุณหภูมิปัจจุบัน</span><strong id="currentTemp">-- °C</strong><small id="tempStatus">รอข้อมูล</small></div>
+      </article>
+      <article class="stat-card">
+        <div class="icon fire">🔥</div>
+        <div><span>ระดับความเสี่ยง</span><strong id="riskLevel">ปกติ</strong><small>เกณฑ์แจ้งเตือน 100°C</small></div>
+      </article>
+      <article class="stat-card">
+        <div class="icon wifi">📶</div>
+        <div><span>สถานะอุปกรณ์</span><strong id="deviceStatus">ออฟไลน์</strong><small>เครื่องตรวจจับความร้อน #01</small></div>
+      </article>
+    </section>
+
+    <section class="panel chart-panel">
+      <div class="panel-head"><h2>กราฟอุณหภูมิ (Realtime)</h2><button class="small-btn" id="refreshBtn">รีเฟรชข้อมูล</button></div>
+      <div class="chart-wrap"><canvas id="tempChart"></canvas></div>
+    </section>
+  </main>
+
+  <div id="alertOverlay" class="alert-overlay hidden">
+    <div class="alert-box">
+      <div class="alert-icon">🔥</div>
+      <h2>แจ้งเตือนอุณหภูมิสูง!</h2>
+      <p>ตรวจพบอุณหภูมิสูงกว่าเกณฑ์ที่กำหนด</p>
+      <strong id="alertTemp">-- °C</strong>
+      <button id="closeAlert">รับทราบ</button>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="js/common.js"></script>
+  <script src="js/dashboard.js"></script>
+</body>
+</html>
