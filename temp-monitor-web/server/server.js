@@ -38,7 +38,10 @@ let dangerThreshold = 100;
 let resetThreshold = 100;
 
 let dangerLatched = false;
+let lastLineAlert = 0;
 let lastDbSave = 0;
+
+const LINE_ALERT_INTERVAL = 30 * 1000; // 30 วินาที
 
 // =====================================================
 // LOAD SETTINGS
@@ -227,8 +230,16 @@ async function processTemperature(temp) {
   // REAL ALERT
   // ===================================================
 
-  if (temp > dangerThreshold && !dangerLatched) {
+ if (temp > dangerThreshold) {
+  const now = Date.now();
+
+  // แจ้งทันทีครั้งแรก หรือแจ้งซ้ำทุก 30 วินาที
+  if (
+    !dangerLatched ||
+    now - lastLineAlert >= LINE_ALERT_INTERVAL
+  ) {
     dangerLatched = true;
+    lastLineAlert = now;
 
     console.log(
       `[ALERT] Temperature ${temp}°C > ${dangerThreshold}°C`
@@ -244,11 +255,12 @@ async function processTemperature(temp) {
       line_sent: lineSent,
     });
   }
-
-  // Reset ระบบแจ้งเตือน
-  if (temp <= resetThreshold) {
-    dangerLatched = false;
-  }
+}
+// Reset ระบบแจ้งเตือน
+if (temp <= resetThreshold) {
+  dangerLatched = false;
+  lastLineAlert = 0;
+}
 
   // ===================================================
   // SAVE DATABASE EVERY 3 MINUTES
