@@ -5,16 +5,127 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
 
-    <title>ตั้งค่าระบบ</title>
+    <title>Servo Control</title>
 
     <link rel="stylesheet" href="css/style.css">
+
+    <style>
+        .servo-page {
+            max-width: 760px;
+        }
+
+        .servo-card {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 24px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+        }
+
+        .servo-card h1 {
+            margin: 0 0 8px;
+            font-size: 26px;
+        }
+
+        .servo-card p {
+            margin: 0 0 20px;
+            color: #667085;
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+
+        .sensor-box {
+            border: 1px solid #e4e7ec;
+            border-radius: 10px;
+            padding: 14px;
+            background: #f9fafb;
+        }
+
+        .sensor-label {
+            font-size: 13px;
+            color: #667085;
+            margin-bottom: 6px;
+        }
+
+        .sensor-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #101828;
+        }
+
+        .control-pad {
+            display: grid;
+            grid-template-columns: 90px 90px 90px;
+            grid-template-rows: 90px 90px 90px;
+            gap: 12px;
+            justify-content: center;
+            align-items: center;
+            margin-top: 8px;
+        }
+
+        .control-pad button {
+            width: 90px;
+            height: 90px;
+            border: none;
+            border-radius: 12px;
+            background: #ff6b35;
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #b8421f;
+        }
+
+        .control-pad button:active,
+        .control-pad button.pressed {
+            transform: translateY(4px);
+            box-shadow: 0 1px 0 #b8421f;
+        }
+
+        .control-pad .stop {
+            background: #d92d20;
+            box-shadow: 0 5px 0 #8f1d14;
+            font-size: 20px;
+        }
+
+        .pad-empty {
+            width: 90px;
+            height: 90px;
+        }
+
+        .servo-status {
+            margin-top: 18px;
+            text-align: center;
+            color: #667085;
+            min-height: 22px;
+        }
+
+        @media (max-width: 640px) {
+            .sensor-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .control-pad {
+                grid-template-columns: 76px 76px 76px;
+                grid-template-rows: 76px 76px 76px;
+            }
+
+            .control-pad button,
+            .pad-empty {
+                width: 76px;
+                height: 76px;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
-    <!-- Top Bar -->
     <header class="topbar">
-
         <button class="menu-btn" id="menuBtn">
             ☰
         </button>
@@ -26,15 +137,10 @@
         <div class="top-user">
             🔔 ผู้ดูแลระบบ 👤
         </div>
-
     </header>
 
-
-    <!-- Sidebar -->
     <aside class="sidebar" id="sidebar">
-
         <div class="brand">
-
             🔥
 
             <span>
@@ -44,12 +150,9 @@
             <small>
                 FIRE & TEMPERATURE MONITOR
             </small>
-
         </div>
 
-
         <nav>
-
             <a href="index.html">
                 หน้าหลัก
             </a>
@@ -77,28 +180,182 @@
             <a class="active" href="servocontrol.html">
                 Servo Control
             </a>
-
         </nav>
-
 
         <div class="sidebar-footer">
             “ระบบแจ้งเตือนอัจฉริยะ”
         </div>
-
     </aside>
 
-
-    <!-- Main Content -->
     <main class="content">
+        <section class="servo-page">
+            <div class="servo-card">
+                <h1>Servo Control</h1>
+                <p>ควบคุมกล้องและอ่านค่าระยะ/อุณหภูมิผ่านระบบ cloud</p>
 
+                <div class="sensor-grid">
+                    <div class="sensor-box">
+                        <div class="sensor-label">ระยะ</div>
+                        <div class="sensor-value">
+                            <span id="distanceValue">--</span> mm
+                        </div>
+                    </div>
 
+                    <div class="sensor-box">
+                        <div class="sensor-label">อุณหภูมิเป้าหมาย</div>
+                        <div class="sensor-value">
+                            <span id="objectTempValue">--</span> °C
+                        </div>
+                    </div>
+
+                    <div class="sensor-box">
+                        <div class="sensor-label">สถานะ Sensor</div>
+                        <div class="sensor-value" id="sensorStatusValue">
+                            --
+                        </div>
+                    </div>
+                </div>
+
+                <div class="control-pad">
+                    <div class="pad-empty"></div>
+                    <button id="btnUp">▲</button>
+                    <div class="pad-empty"></div>
+
+                    <button id="btnLeft">◀</button>
+                    <button id="btnStop" class="stop">STOP</button>
+                    <button id="btnRight">▶</button>
+
+                    <div class="pad-empty"></div>
+                    <button id="btnDown">▼</button>
+                    <div class="pad-empty"></div>
+                </div>
+
+                <div class="servo-status" id="servoStatus">
+                    พร้อมใช้งาน
+                </div>
+            </div>
+        </section>
     </main>
 
-
-    <!-- JavaScript -->
     <script src="js/common.js"></script>
 
-    <script src="js/settings.js"></script>
+    <script>
+        const API_TOKEN = "servo-god-1234";
+
+        const statusEl = document.getElementById("servoStatus");
+        const distanceEl = document.getElementById("distanceValue");
+        const objectTempEl = document.getElementById("objectTempValue");
+        const sensorStatusEl = document.getElementById("sensorStatusValue");
+
+        let activeButton = null;
+        let heartbeat = null;
+        let lastX = 0;
+        let lastY = 0;
+
+        async function moveCamera(x, y) {
+            lastX = x;
+            lastY = y;
+
+            try {
+                const res = await fetch("/api/move", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        token: API_TOKEN,
+                        x: x,
+                        y: y
+                    })
+                });
+
+                if (!res.ok) {
+                    statusEl.textContent = "ส่งคำสั่งไม่สำเร็จ";
+                    return;
+                }
+
+                statusEl.textContent = x === 0 && y === 0 ? "หยุดแล้ว" : "กำลังหมุน";
+            } catch (err) {
+                statusEl.textContent = "เชื่อมต่อ server ไม่ได้";
+            }
+        }
+
+        function stopCamera() {
+            if (heartbeat) {
+                clearInterval(heartbeat);
+                heartbeat = null;
+            }
+
+            if (activeButton) {
+                activeButton.classList.remove("pressed");
+                activeButton = null;
+            }
+
+            moveCamera(0, 0);
+        }
+
+        function bindHoldButton(id, x, y) {
+            const button = document.getElementById(id);
+
+            button.addEventListener("pointerdown", function (event) {
+                event.preventDefault();
+
+                activeButton = button;
+                button.classList.add("pressed");
+                button.setPointerCapture(event.pointerId);
+
+                moveCamera(x, y);
+
+                if (heartbeat) {
+                    clearInterval(heartbeat);
+                }
+
+                heartbeat = setInterval(function () {
+                    moveCamera(lastX, lastY);
+                }, 500);
+            });
+
+            button.addEventListener("pointerup", stopCamera);
+            button.addEventListener("pointercancel", stopCamera);
+            button.addEventListener("lostpointercapture", stopCamera);
+        }
+
+        async function readSensors() {
+            try {
+                const res = await fetch("/api/sensors", {
+                    cache: "no-store"
+                });
+
+                const data = await res.json();
+
+                distanceEl.textContent = data.distance_mm >= 0 ? data.distance_mm : "--";
+                objectTempEl.textContent = data.object_temp_c === null || data.object_temp_c === undefined
+                    ? "--"
+                    : Number(data.object_temp_c).toFixed(2);
+
+                sensorStatusEl.textContent = data.sensor_text || "--";
+            } catch (err) {
+                sensorStatusEl.textContent = "offline";
+            }
+        }
+
+        bindHoldButton("btnUp", 0, -1);
+        bindHoldButton("btnDown", 0, 1);
+        bindHoldButton("btnLeft", -1, 0);
+        bindHoldButton("btnRight", 1, 0);
+
+        document.getElementById("btnStop").addEventListener("click", stopCamera);
+        window.addEventListener("blur", stopCamera);
+
+        document.addEventListener("visibilitychange", function () {
+            if (document.hidden) {
+                stopCamera();
+            }
+        });
+
+        readSensors();
+        setInterval(readSensors, 2000);
+    </script>
 
 </body>
 

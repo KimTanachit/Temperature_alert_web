@@ -477,6 +477,124 @@ io.on("connection", (socket) => {
     console.log("[SOCKET] client disconnected");
   });
 });
+// =====================================================
+// SERVO
+// =====================================================
+
+let servoCommand = {
+  x: 0,
+  y: 0,
+  updatedAt: Date.now()
+};
+
+let servoSensors = {
+  distance_mm: -1,
+  object_temp_c: null,
+  ambient_temp_c: null,
+  sensor_status: 0,
+  sensor_text: "waiting for board",
+  mlx_address: -1,
+  updatedAt: Date.now()
+};
+
+const SERVO_API_TOKEN = process.env.API_TOKEN || "servo-god-1234";
+
+// =====================================================
+// MOVE SERVO
+// =====================================================
+
+app.post("/api/move", (req, res) => {
+  const { token, x, y } = req.body;
+
+  if (token !== SERVO_API_TOKEN) {
+    return res.status(401).json({
+      error: "bad token"
+    });
+  }
+
+  const nextX = Number(x);
+  const nextY = Number(y);
+
+  if (
+    !Number.isInteger(nextX) ||
+    !Number.isInteger(nextY)
+  ) {
+    return res.status(400).json({
+      error: "x/y must be numbers"
+    });
+  }
+
+  if (
+    nextX < -1 ||
+    nextX > 1 ||
+    nextY < -1 ||
+    nextY > 1
+  ) {
+    return res.status(400).json({
+      error: "x/y must be -1, 0, or 1"
+    });
+  }
+
+  servoCommand = {
+    x: nextX,
+    y: nextY,
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    ok: true,
+    command: servoCommand
+  });
+});
+
+// =====================================================
+// GET SERVO COMMAND
+// =====================================================
+
+app.get("/api/command", (req, res) => {
+  if (req.query.token !== SERVO_API_TOKEN) {
+    return res.status(401).json({
+      error: "bad token"
+    });
+  }
+
+  res.json(servoCommand);
+});
+
+// =====================================================
+// RECEIVE SERVO SENSORS
+// =====================================================
+
+app.post("/api/sensors", (req, res) => {
+  if (req.body.token !== SERVO_API_TOKEN) {
+    return res.status(401).json({
+      error: "bad token"
+    });
+  }
+
+  servoSensors = {
+    distance_mm: Number(req.body.distance_mm ?? -1),
+    object_temp_c: req.body.object_temp_c ?? null,
+    ambient_temp_c: req.body.ambient_temp_c ?? null,
+    sensor_status: Number(req.body.sensor_status ?? 0),
+    sensor_text: req.body.sensor_text || "unknown",
+    mlx_address: Number(req.body.mlx_address ?? -1),
+    updatedAt: Date.now()
+  };
+
+  res.json({
+    ok: true,
+    sensors: servoSensors
+  });
+});
+
+// =====================================================
+// GET SERVO SENSORS
+// =====================================================
+
+app.get("/api/sensors", (req, res) => {
+  res.json(servoSensors);
+});
 
 // =====================================================
 // START SERVER
@@ -491,3 +609,4 @@ io.on("connection", (socket) => {
     );
   });
 })();
+
