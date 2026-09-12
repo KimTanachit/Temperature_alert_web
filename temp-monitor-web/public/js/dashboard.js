@@ -3,7 +3,7 @@ let chart = null;
 let lastAlertState = false;
 
 // จำนวนจุด Real-time ที่แสดงบนกราฟ
-const MAX_REALTIME_POINTS = 60;
+const MAX_REALTIME_POINTS = 50;
 
 // =====================================================
 // LOAD HISTORY FROM DATABASE
@@ -27,6 +27,9 @@ async function loadDashboardHistory() {
 // =====================================================
 
 function updateDashboardChart(rows) {
+  // เอาเฉพาะ 50 จุดล่าสุด
+  rows = rows.slice(-50);
+
   const labels = rows.map(r =>
     new Date(r.recorded_at).toLocaleTimeString("th-TH", {
       hour: "2-digit",
@@ -38,32 +41,24 @@ function updateDashboardChart(rows) {
   const values = rows.map(r => Number(r.temperature));
 
   const canvas = document.getElementById("tempChart");
-
   if (!canvas) return;
 
-  if (chart) {
-    chart.destroy();
-  }
+  if (chart) chart.destroy();
 
   chart = new Chart(canvas, {
     type: "line",
 
     data: {
-      labels: labels,
-
-      datasets: [
-        {
-          label: "อุณหภูมิ (°C)",
-          data: values,
-
-          borderWidth: 2,
-          tension: 0.35,
-          fill: true,
-
-          pointRadius: 2,
-          pointHoverRadius: 5
-        }
-      ]
+      labels,
+      datasets: [{
+        label: "อุณหภูมิ (°C)",
+        data: values,
+        borderWidth: 2,
+        tension: 0.35,
+        fill: true,
+        pointRadius: 2,
+        pointHoverRadius: 5
+      }]
     },
 
     options: {
@@ -102,8 +97,8 @@ function addRealtimePoint(temp, timestamp) {
   chart.data.labels.push(label);
   chart.data.datasets[0].data.push(value);
 
-  // จำกัดจำนวนจุดบนกราฟ
-  if (chart.data.labels.length > MAX_REALTIME_POINTS) {
+  // เกิน 50 จุด → เอาจุดเก่าที่สุดออก
+  while (chart.data.labels.length > 50) {
     chart.data.labels.shift();
     chart.data.datasets[0].data.shift();
   }
