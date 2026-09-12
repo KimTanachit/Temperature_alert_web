@@ -44,4 +44,4 @@ async function sendTemperature() {
 console.log("เริ่มจำลอง Sensor...");
 sendTemperature();
 
-setInterval(sendTemperature, 2000);
+setInterval(sendTemperature, 1000);
