@@ -269,21 +269,16 @@ async function processTemperature(temp) {
 // TEST LINE 10 TIMES
 // =====================================================
 
-app.post("/api/test/line", async (req, res) => {
+app.get("/api/test/line", async (req, res) => {
   try {
-    const temp = Number(req.body.temperature || 105);
-
-    if (!Number.isFinite(temp)) {
-      return res.status(400).json({
-        error: "temperature must be a number",
-      });
-    }
+    const temp = 105;
 
     if (
       !process.env.LINE_CHANNEL_ACCESS_TOKEN ||
       !process.env.LINE_TO_USER_ID
     ) {
       return res.status(400).json({
+        ok: false,
         error:
           "ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN หรือ LINE_TO_USER_ID",
       });
@@ -303,7 +298,12 @@ app.post("/api/test/line", async (req, res) => {
         sent: sent,
       });
 
-      // เว้น 1 วินาทีระหว่างข้อความ
+      console.log(
+        `[LINE TEST] ส่งครั้งที่ ${i}/10 ${
+          sent ? "สำเร็จ" : "ไม่สำเร็จ"
+        }`
+      );
+
       if (i < 10) {
         await new Promise((resolve) => {
           setTimeout(resolve, 1000);
@@ -323,6 +323,7 @@ app.post("/api/test/line", async (req, res) => {
     console.error("[LINE TEST] error:", err);
 
     res.status(500).json({
+      ok: false,
       error: err.message,
     });
   }
