@@ -230,37 +230,37 @@ async function processTemperature(temp) {
   // REAL ALERT
   // ===================================================
 
- if (temp > dangerThreshold) {
-  const now = Date.now();
+  if (temp > dangerThreshold) {
+    const now = Date.now();
 
-  // แจ้งทันทีครั้งแรก หรือแจ้งซ้ำทุก 30 วินาที
-  if (
-    !dangerLatched ||
-    now - lastLineAlert >= LINE_ALERT_INTERVAL
-  ) {
-    dangerLatched = true;
-    lastLineAlert = now;
+    // แจ้งทันทีครั้งแรก หรือแจ้งซ้ำทุก 30 วินาที
+    if (
+      !dangerLatched ||
+      now - lastLineAlert >= LINE_ALERT_INTERVAL
+    ) {
+      dangerLatched = true;
+      lastLineAlert = now;
 
-    console.log(
-      `[ALERT] Temperature ${temp}°C > ${dangerThreshold}°C`
-    );
+      console.log(
+        `[ALERT] Temperature ${temp}°C >${dangerThreshold}°C`
+      );
 
-    const lineSent = await sendLineAlert(temp);
+      const lineSent = await sendLineAlert(temp);
 
-    await saveAlert(temp, lineSent);
+      await saveAlert(temp, lineSent);
 
-    io.emit("alert", {
-      temperature: temp,
-      threshold: dangerThreshold,
-      line_sent: lineSent,
-    });
+      io.emit("alert", {
+        temperature: temp,
+        threshold: dangerThreshold,
+        line_sent: lineSent,
+      });
+    }
   }
-}
-// Reset ระบบแจ้งเตือน
-if (temp <= resetThreshold) {
-  dangerLatched = false;
-  lastLineAlert = 0;
-}
+  // Reset ระบบแจ้งเตือน
+  if (temp <= resetThreshold) {
+    dangerLatched = false;
+    lastLineAlert = 0;
+  }
 
   // ===================================================
   // SAVE DATABASE EVERY 3 MINUTES
@@ -276,70 +276,6 @@ if (temp <= resetThreshold) {
     }
   }
 }
-
-// =====================================================
-// TEST LINE 10 TIMES
-// =====================================================
-
-// app.get("/api/test/line", async (req, res) => {
-//   try {
-//     const temp = 105;
-
-//     if (
-//       !process.env.LINE_CHANNEL_ACCESS_TOKEN ||
-//       !process.env.LINE_TO_USER_ID
-//     ) {
-//       return res.status(400).json({
-//         ok: false,
-//         error:
-//           "ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN หรือ LINE_TO_USER_ID",
-//       });
-//     }
-
-//     console.log(
-//       `[LINE TEST] เริ่มทดสอบส่ง LINE 10 ครั้ง | Temperature: ${temp}°C`
-//     );
-
-//     const results = [];
-
-//     for (let i = 1; i <= 10; i++) {
-//       const sent = await sendLineAlert(temp, i);
-
-//       results.push({
-//         round: i,
-//         sent: sent,
-//       });
-
-//       console.log(
-//         `[LINE TEST] ส่งครั้งที่ ${i}/10 ${
-//           sent ? "สำเร็จ" : "ไม่สำเร็จ"
-//         }`
-//       );
-
-//       if (i < 10) {
-//         await new Promise((resolve) => {
-//           setTimeout(resolve, 1000);
-//         });
-//       }
-//     }
-
-//     console.log("[LINE TEST] ทดสอบครบ 10 ครั้งแล้ว");
-
-//     res.json({
-//       ok: true,
-//       message: "ทดสอบส่ง LINE 10 ครั้งเสร็จแล้ว",
-//       temperature: temp,
-//       results: results,
-//     });
-//   } catch (err) {
-//     console.error("[LINE TEST] error:", err);
-
-//     res.status(500).json({
-//       ok: false,
-//       error: err.message,
-//     });
-//   }
-// });
 
 // =====================================================
 // CURRENT TEMPERATURE
@@ -431,6 +367,21 @@ app.post("/api/sensor/temperature", async (req, res) => {
 
   try {
     await processTemperature(req.body.temperature);
+
+    // --- ส่วนที่เพิ่มใหม่: อัปเดตสถานะอุปกรณ์ลง Supabase ---
+    const { error: deviceError } = await supabase
+      .from("device_status")
+      .update({
+        last_seen: new Date().toISOString(),
+        sensor_status: true,
+        wifi_status: true,
+      })
+      .eq("id", 1);
+
+    if (deviceError) {
+      console.error("[DB] device status error:", deviceError.message);
+    }
+    // ---------------------------------------------------------
 
     res.json({
       ok: true,
