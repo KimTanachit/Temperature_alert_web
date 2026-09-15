@@ -41,11 +41,7 @@ let dangerLatched = false;
 let lastLineAlert = 0;
 let lastDbSave = 0;
 
-const LINE_ALERT_INTERVAL = 30 * 1000; // 30 วินาที
-
-// =====================================================
-// LOAD SETTINGS
-// =====================================================
+const LINE_ALERT_INTERVAL = 30 * 1000;
 
 async function loadSettings() {
   const { data, error } = await supabase
@@ -68,10 +64,6 @@ async function loadSettings() {
     );
   }
 }
-
-// =====================================================
-// SEND LINE ALERT
-// =====================================================
 
 async function sendLineAlert(temp, testRound = null) {
   if (
@@ -104,15 +96,12 @@ async function sendLineAlert(temp, testRound = null) {
       "https://api.line.me/v2/bot/message/push",
       {
         method: "POST",
-
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
         },
-
         body: JSON.stringify({
           to: process.env.LINE_TO_USER_ID,
-
           messages: [
             {
               type: "text",
@@ -125,9 +114,7 @@ async function sendLineAlert(temp, testRound = null) {
 
     if (!response.ok) {
       const errorText = await response.text();
-
       console.error("[LINE] ส่งไม่สำเร็จ:", errorText);
-
       return false;
     }
 
@@ -140,14 +127,9 @@ async function sendLineAlert(temp, testRound = null) {
     return true;
   } catch (error) {
     console.error("[LINE] connection error:", error.message);
-
     return false;
   }
 }
-
-// =====================================================
-// SAVE TEMPERATURE
-// =====================================================
 
 async function saveTemperature(temp, timestamp) {
   const d = new Date(timestamp);
@@ -187,10 +169,6 @@ async function saveTemperature(temp, timestamp) {
   lastDbSave = Date.now();
 }
 
-// =====================================================
-// SAVE ALERT
-// =====================================================
-
 async function saveAlert(temp, lineSent) {
   const { error } = await supabase
     .from("alerts")
@@ -206,10 +184,6 @@ async function saveAlert(temp, lineSent) {
   }
 }
 
-// =====================================================
-// PROCESS TEMPERATURE
-// =====================================================
-
 async function processTemperature(temp) {
   temp = Number(temp);
 
@@ -220,20 +194,14 @@ async function processTemperature(temp) {
   currentTemperature = temp;
   lastSensorSeen = new Date();
 
-  // ส่งข้อมูลไปหน้าเว็บแบบ Real-time
   io.emit("temperature", {
     temperature: temp,
     timestamp: lastSensorSeen.toISOString(),
   });
 
-  // ===================================================
-  // REAL ALERT
-  // ===================================================
-
   if (temp > dangerThreshold) {
     const now = Date.now();
 
-    // แจ้งทันทีครั้งแรก หรือแจ้งซ้ำทุก 30 วินาที
     if (
       !dangerLatched ||
       now - lastLineAlert >= LINE_ALERT_INTERVAL
@@ -256,20 +224,15 @@ async function processTemperature(temp) {
       });
     }
   }
-  // Reset ระบบแจ้งเตือน
+
   if (temp <= resetThreshold) {
     dangerLatched = false;
     lastLineAlert = 0;
   }
 
-  // ===================================================
-  // SAVE DATABASE EVERY 3 MINUTES
-  // ===================================================
-
   if (Date.now() - lastDbSave >= 3 * 60 * 1000) {
     try {
       await saveTemperature(temp, lastSensorSeen);
-
       console.log("[DB] saved", temp);
     } catch (err) {
       console.error("[DB] save error:", err.message);
@@ -277,20 +240,12 @@ async function processTemperature(temp) {
   }
 }
 
-// =====================================================
-// CURRENT TEMPERATURE
-// =====================================================
-
 app.get("/api/temperature/current", (req, res) => {
   res.json({
     temperature: currentTemperature,
     last_seen: lastSensorSeen,
   });
 });
-
-// =====================================================
-// TEMPERATURE HISTORY
-// =====================================================
 
 app.get("/api/temperature/history", async (req, res) => {
   const minutes = Math.min(
@@ -329,10 +284,6 @@ app.get("/api/temperature/history", async (req, res) => {
   );
 });
 
-// =====================================================
-// ALERT HISTORY
-// =====================================================
-
 app.get("/api/alerts", async (req, res) => {
   const { data, error } = await supabase
     .from("alerts")
@@ -351,10 +302,6 @@ app.get("/api/alerts", async (req, res) => {
   res.json(data || []);
 });
 
-// =====================================================
-// SENSOR API
-// =====================================================
-
 app.post("/api/sensor/temperature", async (req, res) => {
   if (
     req.headers["x-sensor-api-key"] !==
@@ -368,7 +315,6 @@ app.post("/api/sensor/temperature", async (req, res) => {
   try {
     await processTemperature(req.body.temperature);
 
-    // --- ส่วนที่เพิ่มใหม่: อัปเดตสถานะอุปกรณ์ลง Supabase ---
     const { error: deviceError } = await supabase
       .from("device_status")
       .update({
@@ -381,7 +327,6 @@ app.post("/api/sensor/temperature", async (req, res) => {
     if (deviceError) {
       console.error("[DB] device status error:", deviceError.message);
     }
-    // ---------------------------------------------------------
 
     res.json({
       ok: true,
@@ -394,23 +339,16 @@ app.post("/api/sensor/temperature", async (req, res) => {
   }
 });
 
-// =====================================================
-// DEVICE STATUS
-// =====================================================
-
 app.get("/api/device/status", async (req, res) => {
-  // 1. เช็คว่าออนไลน์ไหม (Arduino ส่งทุก 60 วินาที เราตั้งเผื่อให้เป็น 70 วินาที หรือ 70000 ms)
   const isOnline =
     lastSensorSeen && Date.now() - lastSensorSeen.getTime() < 70000;
 
-  // 2. ดึงข้อมูลสถานะล่าสุดจากตาราง device_status ใน Supabase
   const { data, error } = await supabase
     .from("device_status")
     .select("*")
     .eq("id", 1)
     .single();
 
-  // ถ้าดึงข้อมูลจาก DB ไม่สำเร็จ ให้ส่งแค่ออนไลน์กับเวลาล่าสุดไปก่อน
   if (error || !data) {
     return res.json({
       online: !!isOnline,
@@ -418,7 +356,6 @@ app.get("/api/device/status", async (req, res) => {
     });
   }
 
-  // 3. ส่งข้อมูลทั้งหมดให้หน้าเว็บ (ถ้าขาดการติดต่อไปแล้ว ให้มองว่า WiFi และ Sensor ออฟไลน์ไปด้วย)
   res.json({
     online: !!isOnline,
     wifi_status: isOnline ? data.wifi_status : false,
@@ -427,9 +364,6 @@ app.get("/api/device/status", async (req, res) => {
     last_seen: data.last_seen || lastSensorSeen,
   });
 });
-// =====================================================
-// SETTINGS GET
-// =====================================================
 
 app.get("/api/settings", (req, res) => {
   res.json({
@@ -437,10 +371,6 @@ app.get("/api/settings", (req, res) => {
     reset_threshold: resetThreshold,
   });
 });
-
-// =====================================================
-// SETTINGS UPDATE
-// =====================================================
 
 app.put("/api/settings", async (req, res) => {
   const danger = Number(req.body.danger_threshold);
@@ -477,10 +407,6 @@ app.put("/api/settings", async (req, res) => {
   });
 });
 
-// =====================================================
-// SOCKET.IO
-// =====================================================
-
 io.on("connection", (socket) => {
   console.log("[SOCKET] client connected");
 
@@ -495,6 +421,7 @@ io.on("connection", (socket) => {
     console.log("[SOCKET] client disconnected");
   });
 });
+
 // =====================================================
 // SERVO
 // =====================================================
@@ -517,10 +444,6 @@ let servoSensors = {
 
 const SERVO_API_TOKEN = process.env.API_TOKEN || "servo-god-1234";
 
-// =====================================================
-// MOVE SERVO
-// =====================================================
-
 app.post("/api/move", (req, res) => {
   const { token, x, y } = req.body;
 
@@ -533,41 +456,31 @@ app.post("/api/move", (req, res) => {
   const nextX = Number(x);
   const nextY = Number(y);
 
-  if (
-    !Number.isInteger(nextX) ||
-    !Number.isInteger(nextY)
-  ) {
+  if (!Number.isInteger(nextX) || !Number.isInteger(nextY)) {
     return res.status(400).json({
       error: "x/y must be numbers"
     });
   }
 
-  if (
-    nextX < -1 ||
-    nextX > 1 ||
-    nextY < -1 ||
-    nextY > 1
-  ) {
+  if (nextX < -1 || nextX > 1 || nextY < -1 || nextY > 1) {
     return res.status(400).json({
       error: "x/y must be -1, 0, or 1"
     });
   }
 
-  servoCommand = {
-    x: nextX,
-    y: nextY,
-    updatedAt: Date.now()
-  };
+  if (servoCommand.x !== nextX || servoCommand.y !== nextY) {
+    servoCommand = {
+      x: nextX,
+      y: nextY,
+      updatedAt: Date.now()
+    };
+  }
 
   res.json({
     ok: true,
     command: servoCommand
   });
 });
-
-// =====================================================
-// GET SERVO COMMAND
-// =====================================================
 
 app.get("/api/command", (req, res) => {
   if (req.query.token !== SERVO_API_TOKEN) {
@@ -578,10 +491,6 @@ app.get("/api/command", (req, res) => {
 
   res.json(servoCommand);
 });
-
-// =====================================================
-// RECEIVE SERVO SENSORS
-// =====================================================
 
 app.post("/api/sensors", (req, res) => {
   if (req.body.token !== SERVO_API_TOKEN) {
@@ -606,17 +515,9 @@ app.post("/api/sensors", (req, res) => {
   });
 });
 
-// =====================================================
-// GET SERVO SENSORS
-// =====================================================
-
 app.get("/api/sensors", (req, res) => {
   res.json(servoSensors);
 });
-
-// =====================================================
-// START SERVER
-// =====================================================
 
 (async () => {
   await loadSettings();
@@ -627,4 +528,3 @@ app.get("/api/sensors", (req, res) => {
     );
   });
 })();
-
