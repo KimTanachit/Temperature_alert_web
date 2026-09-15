@@ -8,10 +8,10 @@ function setText(el, text) {
   if (el) el.textContent = text;
 }
 
-function formatTime(updatedAt) {
-  if (!updatedAt) return "--";
+function formatTime(value) {
+  if (!value) return "--";
 
-  const date = new Date(Number(updatedAt));
+  const date = new Date(value);
   if (Number.isNaN(date.getTime())) return "--";
 
   const parts = new Intl.DateTimeFormat("th-TH", {
@@ -28,34 +28,28 @@ function formatTime(updatedAt) {
   return `${get("day")}/${get("month")}/${get("year")} ${get("hour")}:${get("minute")}`;
 }
 
-function isOnline(updatedAt) {
-  if (!updatedAt) return false;
-
-  return Date.now() - Number(updatedAt) < 30000;
-}
-
 async function loadDeviceStatus() {
   try {
-    const res = await fetch("/api/sensors", {
+    const res = await fetch("/api/device/status", {
       cache: "no-store"
     });
 
-    if (!res.ok) {
-      throw new Error("api error");
-    }
+    if (!res.ok) throw new Error("status api failed");
 
     const data = await res.json();
-    const online = isOnline(data.updatedAt);
+    const online = !!data.online;
 
     setText(deviceOnlineEl, online ? "ออนไลน์" : "ออฟไลน์");
-    setText(lastSeenEl, formatTime(data.updatedAt));
-    setText(wifiEl, online ? "ออนไลน์" : "ออฟไลน์");
-    setText(controllerEl, online ? "ออนไลน์" : "ออฟไลน์");
+    setText(lastSeenEl, formatTime(data.last_seen));
+    setText(wifiEl, data.wifi_status ? "ออนไลน์" : "ออฟไลน์");
+    setText(controllerEl, data.controller_online ? "ออนไลน์" : "ออฟไลน์");
 
     if (!online) {
       setText(sensorEl, "ออฟไลน์");
+    } else if (data.servo?.sensor_text) {
+      setText(sensorEl, data.servo.sensor_text);
     } else {
-      setText(sensorEl, data.sensor_text || "ออนไลน์");
+      setText(sensorEl, data.sensor_status ? "ออนไลน์" : "ไม่พบเซนเซอร์");
     }
   } catch (err) {
     setText(deviceOnlineEl, "ออฟไลน์");
