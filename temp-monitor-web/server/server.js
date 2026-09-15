@@ -41,7 +41,11 @@ let dangerLatched = false;
 let lastLineAlert = 0;
 let lastDbSave = 0;
 
-const LINE_ALERT_INTERVAL = 30 * 1000;
+const LINE_ALERT_INTERVAL = 30 * 1000; // 30 วินาที
+
+// =====================================================
+// LOAD SETTINGS
+// =====================================================
 
 async function loadSettings() {
   const { data, error } = await supabase
@@ -64,6 +68,10 @@ async function loadSettings() {
     );
   }
 }
+
+// =====================================================
+// SEND LINE ALERT
+// =====================================================
 
 async function sendLineAlert(temp, testRound = null) {
   if (
@@ -96,12 +104,15 @@ async function sendLineAlert(temp, testRound = null) {
       "https://api.line.me/v2/bot/message/push",
       {
         method: "POST",
+
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
         },
+
         body: JSON.stringify({
           to: process.env.LINE_TO_USER_ID,
+
           messages: [
             {
               type: "text",
@@ -114,7 +125,9 @@ async function sendLineAlert(temp, testRound = null) {
 
     if (!response.ok) {
       const errorText = await response.text();
+
       console.error("[LINE] ส่งไม่สำเร็จ:", errorText);
+
       return false;
     }
 
@@ -127,9 +140,14 @@ async function sendLineAlert(temp, testRound = null) {
     return true;
   } catch (error) {
     console.error("[LINE] connection error:", error.message);
+
     return false;
   }
 }
+
+// =====================================================
+// SAVE TEMPERATURE
+// =====================================================
 
 async function saveTemperature(temp, timestamp) {
   const d = new Date(timestamp);
@@ -169,6 +187,10 @@ async function saveTemperature(temp, timestamp) {
   lastDbSave = Date.now();
 }
 
+// =====================================================
+// SAVE ALERT
+// =====================================================
+
 async function saveAlert(temp, lineSent) {
   const { error } = await supabase
     .from("alerts")
@@ -183,6 +205,10 @@ async function saveAlert(temp, lineSent) {
     console.error("[DB] alert save error:", error.message);
   }
 }
+
+// =====================================================
+// PROCESS TEMPERATURE
+// =====================================================
 
 async function processTemperature(temp) {
   temp = Number(temp);
@@ -233,6 +259,7 @@ async function processTemperature(temp) {
   if (Date.now() - lastDbSave >= 3 * 60 * 1000) {
     try {
       await saveTemperature(temp, lastSensorSeen);
+
       console.log("[DB] saved", temp);
     } catch (err) {
       console.error("[DB] save error:", err.message);
@@ -240,12 +267,20 @@ async function processTemperature(temp) {
   }
 }
 
+// =====================================================
+// CURRENT TEMPERATURE
+// =====================================================
+
 app.get("/api/temperature/current", (req, res) => {
   res.json({
     temperature: currentTemperature,
     last_seen: lastSensorSeen,
   });
 });
+
+// =====================================================
+// TEMPERATURE HISTORY
+// =====================================================
 
 app.get("/api/temperature/history", async (req, res) => {
   const minutes = Math.min(
@@ -284,6 +319,10 @@ app.get("/api/temperature/history", async (req, res) => {
   );
 });
 
+// =====================================================
+// ALERT HISTORY
+// =====================================================
+
 app.get("/api/alerts", async (req, res) => {
   const { data, error } = await supabase
     .from("alerts")
@@ -301,6 +340,10 @@ app.get("/api/alerts", async (req, res) => {
 
   res.json(data || []);
 });
+
+// =====================================================
+// SENSOR API
+// =====================================================
 
 app.post("/api/sensor/temperature", async (req, res) => {
   if (
@@ -339,6 +382,10 @@ app.post("/api/sensor/temperature", async (req, res) => {
   }
 });
 
+// =====================================================
+// DEVICE STATUS
+// =====================================================
+
 app.get("/api/device/status", async (req, res) => {
   const isOnline =
     lastSensorSeen && Date.now() - lastSensorSeen.getTime() < 70000;
@@ -365,12 +412,20 @@ app.get("/api/device/status", async (req, res) => {
   });
 });
 
+// =====================================================
+// SETTINGS GET
+// =====================================================
+
 app.get("/api/settings", (req, res) => {
   res.json({
     danger_threshold: dangerThreshold,
     reset_threshold: resetThreshold,
   });
 });
+
+// =====================================================
+// SETTINGS UPDATE
+// =====================================================
 
 app.put("/api/settings", async (req, res) => {
   const danger = Number(req.body.danger_threshold);
@@ -407,6 +462,10 @@ app.put("/api/settings", async (req, res) => {
   });
 });
 
+// =====================================================
+// SOCKET.IO
+// =====================================================
+
 io.on("connection", (socket) => {
   console.log("[SOCKET] client connected");
 
@@ -423,7 +482,7 @@ io.on("connection", (socket) => {
 });
 
 // =====================================================
-// SERVO
+// SERVO LONG POLLING
 // =====================================================
 
 let servoCommand = {
@@ -442,7 +501,22 @@ let servoSensors = {
   updatedAt: Date.now()
 };
 
+let servoWaiters = [];
+
 const SERVO_API_TOKEN = process.env.API_TOKEN || "servo-god-1234";
+
+function sendCommandToWaiters() {
+  const waiters = servoWaiters;
+  servoWaiters = [];
+
+  waiters.forEach((res) => {
+    res.json(servoCommand);
+  });
+}
+
+// =====================================================
+// MOVE SERVO
+// =====================================================
 
 app.post("/api/move", (req, res) => {
   const { token, x, y } = req.body;
@@ -468,12 +542,18 @@ app.post("/api/move", (req, res) => {
     });
   }
 
-  if (servoCommand.x !== nextX || servoCommand.y !== nextY) {
+  const changed =
+    servoCommand.x !== nextX ||
+    servoCommand.y !== nextY;
+
+  if (changed) {
     servoCommand = {
       x: nextX,
       y: nextY,
       updatedAt: Date.now()
     };
+
+    sendCommandToWaiters();
   }
 
   res.json({
@@ -481,6 +561,10 @@ app.post("/api/move", (req, res) => {
     command: servoCommand
   });
 });
+
+// =====================================================
+// GET SERVO COMMAND
+// =====================================================
 
 app.get("/api/command", (req, res) => {
   if (req.query.token !== SERVO_API_TOKEN) {
@@ -491,6 +575,40 @@ app.get("/api/command", (req, res) => {
 
   res.json(servoCommand);
 });
+
+// =====================================================
+// GET SERVO COMMAND LONG POLLING
+// =====================================================
+
+app.get("/api/command/long", (req, res) => {
+  if (req.query.token !== SERVO_API_TOKEN) {
+    return res.status(401).json({
+      error: "bad token"
+    });
+  }
+
+  const since = Number(req.query.since || 0);
+
+  if (servoCommand.updatedAt > since) {
+    return res.json(servoCommand);
+  }
+
+  const timeout = setTimeout(() => {
+    servoWaiters = servoWaiters.filter((waiter) => waiter !== res);
+    res.json(servoCommand);
+  }, 25000);
+
+  res.on("close", () => {
+    clearTimeout(timeout);
+    servoWaiters = servoWaiters.filter((waiter) => waiter !== res);
+  });
+
+  servoWaiters.push(res);
+});
+
+// =====================================================
+// RECEIVE SERVO SENSORS
+// =====================================================
 
 app.post("/api/sensors", (req, res) => {
   if (req.body.token !== SERVO_API_TOKEN) {
@@ -515,9 +633,17 @@ app.post("/api/sensors", (req, res) => {
   });
 });
 
+// =====================================================
+// GET SERVO SENSORS
+// =====================================================
+
 app.get("/api/sensors", (req, res) => {
   res.json(servoSensors);
 });
+
+// =====================================================
+// START SERVER
+// =====================================================
 
 (async () => {
   await loadSettings();
