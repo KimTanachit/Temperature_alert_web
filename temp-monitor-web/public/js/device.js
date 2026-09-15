@@ -15,9 +15,13 @@ function formatTime(updatedAt) {
   if (Number.isNaN(date.getTime())) return "--";
 
   return date.toLocaleString("th-TH", {
-    dateStyle: "short",
-    timeStyle: "medium"
-  });
+  year: "2-digit",
+  month: "numeric",
+  day: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+  hour12: false
+});
 }
 
 function isOnline(updatedAt) {
