@@ -53,4 +53,4 @@ async function loadDeviceStatus() {
 }
 
 loadDeviceStatus();
-setInterval(loadDeviceStatus, 3000);
+setInterval(loadDeviceStatus, 1000);
