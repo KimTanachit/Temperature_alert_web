@@ -399,7 +399,7 @@ app.get("/api/device/status", async (req, res) => {
       : servoLastSeen || tempLastSeen;
 
   const isOnline =
-    latestSeen && Date.now() - latestSeen.getTime() < 30000;
+    latestSeen && Date.now() - latestSeen.getTime() < 15000;
 
   res.json({
     online: !!isOnline,
@@ -407,15 +407,10 @@ app.get("/api/device/status", async (req, res) => {
     controller_online: !!isOnline,
     sensor_status: !!isOnline && Number(servoSensors.sensor_status) > 0,
     last_seen: latestSeen ? latestSeen.toISOString() : null,
-    servo: servoSensors
-  });
-});
-  res.json({
-    online: !!isOnline,
-    wifi_status: isOnline ? data.wifi_status : false,
-    controller_online: !!isOnline,
-    sensor_status: isOnline ? data.sensor_status : false,
-    last_seen: data.last_seen || lastSensorSeen,
+    servo: {
+      ...servoSensors,
+      online: !!isOnline
+    }
   });
 });
 
