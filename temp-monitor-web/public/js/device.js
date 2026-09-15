@@ -28,11 +28,21 @@ function formatTime(updatedAt) {
   return `${get("day")}/${get("month")}/${get("year")} ${get("hour")}:${get("minute")}`;
 }
 
+function isOnline(updatedAt) {
+  if (!updatedAt) return false;
+
+  return Date.now() - Number(updatedAt) < 30000;
+}
+
 async function loadDeviceStatus() {
   try {
     const res = await fetch("/api/sensors", {
       cache: "no-store"
     });
+
+    if (!res.ok) {
+      throw new Error("api error");
+    }
 
     const data = await res.json();
     const online = isOnline(data.updatedAt);
