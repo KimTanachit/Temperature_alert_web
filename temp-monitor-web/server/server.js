@@ -387,22 +387,29 @@ app.post("/api/sensor/temperature", async (req, res) => {
 // =====================================================
 
 app.get("/api/device/status", async (req, res) => {
+  const servoLastSeen = servoSensors?.updatedAt
+    ? new Date(Number(servoSensors.updatedAt))
+    : null;
+
+  const tempLastSeen = lastSensorSeen || null;
+
+  const latestSeen =
+    servoLastSeen && tempLastSeen
+      ? new Date(Math.max(servoLastSeen.getTime(), tempLastSeen.getTime()))
+      : servoLastSeen || tempLastSeen;
+
   const isOnline =
-    lastSensorSeen && Date.now() - lastSensorSeen.getTime() < 70000;
+    latestSeen && Date.now() - latestSeen.getTime() < 30000;
 
-  const { data, error } = await supabase
-    .from("device_status")
-    .select("*")
-    .eq("id", 1)
-    .single();
-
-  if (error || !data) {
-    return res.json({
-      online: !!isOnline,
-      last_seen: lastSensorSeen,
-    });
-  }
-
+  res.json({
+    online: !!isOnline,
+    wifi_status: !!isOnline,
+    controller_online: !!isOnline,
+    sensor_status: !!isOnline && Number(servoSensors.sensor_status) > 0,
+    last_seen: latestSeen ? latestSeen.toISOString() : null,
+    servo: servoSensors
+  });
+});
   res.json({
     online: !!isOnline,
     wifi_status: isOnline ? data.wifi_status : false,
