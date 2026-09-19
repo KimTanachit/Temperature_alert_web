@@ -2,16 +2,26 @@ let tempChart = null;
 let minutes = 1440;
 
 async function loadRoomTemperature() {
+  const roomTempEl = document.getElementById("roomTemp");
+
+  if (!roomTempEl) {
+    return;
+  }
+
   try {
     const data = await getJSON("/api/sensors");
+
+    console.log("ROOM SENSOR DATA:", data);
+
     const temp = data.room_temp_c ?? data.ds18b20_temp_c;
 
-    document.getElementById("roomTemp").textContent =
+    roomTempEl.textContent =
       temp === null || temp === undefined
         ? "-- °C"
         : `${Number(temp).toFixed(1)} °C`;
   } catch (e) {
-    document.getElementById("roomTemp").textContent = "-- °C";
+    console.error("ROOM TEMP ERROR:", e);
+    roomTempEl.textContent = "-- °C";
   }
 }
 
