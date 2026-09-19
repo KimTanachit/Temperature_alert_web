@@ -1,6 +1,16 @@
 let tempChart = null;
 let minutes = 1440;
 
+async function getJSON(url, options = {}) {
+  const res = await fetch(url, options);
+
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  return res.json();
+}
+
 async function loadRoomTemperature() {
   const roomTempEl = document.getElementById("roomTemp");
 
@@ -24,7 +34,7 @@ async function loadRoomTemperature() {
 
 async function loadTemperature() {
   try {
-    const rows = await getJSON(`${API.history}?minutes=${minutes}`);
+    const rows = await getJSON(`/api/temperature/history?minutes=${minutes}`);
     const vals = rows.map(r => Number(r.temperature));
 
     document.getElementById("maxTemp").textContent =
@@ -46,6 +56,10 @@ async function loadTemperature() {
 
 function draw(rows) {
   const canvas = document.getElementById("tempChart");
+
+  if (!canvas) {
+    return;
+  }
 
   if (tempChart) {
     tempChart.destroy();
