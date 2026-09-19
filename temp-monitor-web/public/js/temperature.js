@@ -10,9 +10,6 @@ async function loadRoomTemperature() {
 
   try {
     const data = await getJSON("/api/sensors");
-
-    console.log("ROOM SENSOR DATA:", data);
-
     const temp = data.room_temp_c ?? data.ds18b20_temp_c;
 
     roomTempEl.textContent =
@@ -43,7 +40,7 @@ async function loadTemperature() {
 
     draw(rows);
   } catch (e) {
-    console.error(e);
+    console.error("TEMP HISTORY ERROR:", e);
   }
 }
 
