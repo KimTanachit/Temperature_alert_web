@@ -10,19 +10,25 @@
   <header class="topbar">
     <button class="menu-btn" id="menuBtn">☰</button>
     <div class="top-title">ระบบแจ้งเตือนอุณหภูมิ</div>
-    <div class="top-user">🔔 &nbsp; ผู้ดูแลระบบ &nbsp; 👤</div>
+    <div class="top-user" id="userArea">
+      <span>🔔 &nbsp; </span>
+      <span id="userStatusText">ผู้ใช้งานทั่วไป</span>
+      <span> &nbsp; 👤</span>
+    </div>
   </header>
 
   <aside class="sidebar" id="sidebar">
     <div class="brand">🔥 <span>ระบบแจ้งเตือนอุณหภูมิ</span><small>FIRE & TEMPERATURE MONITOR</small></div>
-    <nav>
+    <nav id="navMenu">
       <a class="active" href="index.html">หน้าหลัก</a>
       <a href="temperature.html">อุณหภูมิ</a>
       <a href="history.html">ประวัติการแจ้งเตือน</a>
       <a href="device.html">สถานะอุปกรณ์</a>
-      <a href="settings.html">ตั้งค่าระบบ</a>
       <a href="about.html">เกี่ยวกับ</a>
-      <a href="servocontrol.html">Servo Control</a>
+
+      <!-- เมนูเฉพาะ Admin (ซ่อนเป็นค่าเริ่มต้น) -->
+      <a class="admin-only" href="settings.html" style="display: none;">ตั้งค่าระบบ</a>
+      <a class="admin-only" href="servocontrol.html" style="display: none;">ควบคุม Servo</a>
     </nav>
     <div class="sidebar-footer">“ระบบแจ้งเตือนอัจฉริยะ”</div>
   </aside>
