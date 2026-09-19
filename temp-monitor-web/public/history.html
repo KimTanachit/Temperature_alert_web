@@ -13,21 +13,17 @@
 <body>
 
     <!-- Top Bar -->
-    <header class="topbar">
-
-        <button class="menu-btn" id="menuBtn">
-            ☰
-        </button>
-
-        <div class="top-title">
-            ระบบแจ้งเตือนอุณหภูมิ
-        </div>
-
-        <div class="top-user">
-            🔔 ผู้ดูแลระบบ 👤
-        </div>
-
-    </header>
+  <header class="topbar">
+    <button class="menu-btn" id="menuBtn">☰</button>
+    <div class="top-title">ระบบแจ้งเตือนอุณหภูมิ</div>
+    
+    <!-- เปลี่ยนเป็นแท็ก <a> ครอบทั้งกล่อง และใส่ลิงก์ตรงไปที่ /login.html -->
+    <a href="/login.html" class="top-user" id="userArea" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; cursor: pointer;">
+      <span>🔔 &nbsp; </span>
+      <span id="userStatusText">ผู้ใช้งานทั่วไป</span>
+      <span> &nbsp; 👤</span>
+    </a>
+  </header>
 
 
     <!-- Sidebar -->
