@@ -16,7 +16,7 @@ function updateRiskLevel(temp) {
 
   if (temp <= 38) {
     riskLevelEl.textContent = "ปกติ";
-    riskLevelEl.style.color = "white"; // ตัวหนังสือสีขาว (หรือสีเดิมของธีม)
+    riskLevelEl.style.color = "black"; // ตัวหนังสือสีดำ (หรือสีเดิมของธีม)
     riskLevelEl.style.backgroundColor = "transparent"; // เคลียร์สีพื้นหลัง
   } else if (temp > 38 && temp <= 50) {
     riskLevelEl.textContent = "สูงกว่าปกติ";
