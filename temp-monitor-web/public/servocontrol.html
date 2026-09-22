@@ -10,52 +10,30 @@
     <link rel="stylesheet" href="css/style.css">
 
     <style>
-        .servo-page {
-            max-width: 760px;
-        }
-
+        .servo-page { max-width: 760px; }
         .servo-card {
             background: #ffffff;
             border-radius: 12px;
             padding: 24px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
         }
-
-        .servo-card h1 {
-            margin: 0 0 8px;
-            font-size: 26px;
-        }
-
-        .servo-card p {
-            margin: 0 0 20px;
-            color: #667085;
-        }
-
+        .servo-card h1 { margin: 0 0 8px; font-size: 26px; }
+        .servo-card p { margin: 0 0 20px; color: #667085; }
+        
         .sensor-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 12px;
             margin-bottom: 24px;
         }
-
         .sensor-box {
             border: 1px solid #e4e7ec;
             border-radius: 10px;
             padding: 14px;
             background: #f9fafb;
         }
-
-        .sensor-label {
-            font-size: 13px;
-            color: #667085;
-            margin-bottom: 6px;
-        }
-
-        .sensor-value {
-            font-size: 22px;
-            font-weight: 700;
-            color: #101828;
-        }
+        .sensor-label { font-size: 13px; color: #667085; margin-bottom: 6px; }
+        .sensor-value { font-size: 22px; font-weight: 700; color: #101828; }
 
         .control-pad {
             display: grid;
@@ -66,59 +44,66 @@
             align-items: center;
             margin-top: 8px;
         }
-
         .control-pad button {
-            width: 90px;
-            height: 90px;
-            border: none;
-            border-radius: 12px;
-            background: #ff6b35;
-            color: #ffffff;
-            font-size: 32px;
-            font-weight: 700;
+            width: 90px; height: 90px;
+            border: none; border-radius: 12px;
+            background: #ff6b35; color: #ffffff;
+            font-size: 32px; font-weight: 700;
             cursor: pointer;
             box-shadow: 0 5px 0 #b8421f;
+            user-select: none; /* ป้องกันการคลุมดำข้อความเวลาแตะค้าง */
+            touch-action: manipulation; /* ลดความหน่วงจากการซูมในมือถือ */
         }
-
         .control-pad button:active,
         .control-pad button.pressed {
             transform: translateY(4px);
             box-shadow: 0 1px 0 #b8421f;
         }
-
         .control-pad .stop {
             background: #d92d20;
             box-shadow: 0 5px 0 #8f1d14;
             font-size: 20px;
         }
+        .pad-empty { width: 90px; height: 90px; }
 
-        .pad-empty {
-            width: 90px;
-            height: 90px;
+        /* ส่วนตั้งค่าที่เพิ่มเข้ามาใหม่ */
+        .settings-pad {
+            margin-top: 24px;
+            background: #f9fafb;
+            padding: 16px;
+            border-radius: 10px;
+            border: 1px solid #e4e7ec;
+        }
+        .settings-pad .setting-group {
+            margin-bottom: 16px;
+        }
+        .settings-pad .setting-group:last-child {
+            margin-bottom: 0;
+        }
+        .settings-pad label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            font-weight: 600;
+            color: #344054;
+            margin-bottom: 8px;
+        }
+        .settings-pad input[type="range"] {
+            width: 100%;
+            accent-color: #ff6b35;
         }
 
         .servo-status {
-            margin-top: 18px;
-            text-align: center;
-            color: #667085;
-            min-height: 22px;
+            margin-top: 18px; text-align: center; color: #667085; min-height: 22px;
         }
 
         @media (max-width: 640px) {
-            .sensor-grid {
-                grid-template-columns: 1fr;
-            }
-
+            .sensor-grid { grid-template-columns: 1fr; }
             .control-pad {
                 grid-template-columns: 76px 76px 76px;
                 grid-template-rows: 76px 76px 76px;
             }
-
-            .control-pad button,
-            .pad-empty {
-                width: 76px;
-                height: 76px;
-            }
+            .control-pad button, .pad-empty { width: 76px; height: 76px; }
         }
     </style>
 </head>
@@ -129,7 +114,6 @@
     <button class="menu-btn" id="menuBtn">☰</button>
     <div class="top-title">ระบบแจ้งเตือนอุณหภูมิ</div>
     
-    <!-- เปลี่ยนเป็นแท็ก <a> ครอบทั้งกล่อง และใส่ลิงก์ตรงไปที่ /login.html -->
     <a href="/login.html" class="top-user" id="userArea" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; cursor: pointer;">
       <span>🔔 &nbsp; </span>
       <span id="userStatusText">ผู้ใช้งานทั่วไป</span>
@@ -139,50 +123,19 @@
 
     <aside class="sidebar" id="sidebar">
         <div class="brand">
-            🔥
-
-            <span>
-                ระบบแจ้งเตือนอุณหภูมิ
-            </span>
-
-            <small>
-                FIRE & TEMPERATURE MONITOR
-            </small>
+            🔥 <span>ระบบแจ้งเตือนอุณหภูมิ</span>
+            <small>FIRE & TEMPERATURE MONITOR</small>
         </div>
-
         <nav>
-            <a href="index.html">
-                หน้าหลัก
-            </a>
-
-            <a href="temperature.html">
-                อุณหภูมิ
-            </a>
-
-            <a href="history.html">
-                ประวัติการแจ้งเตือน
-            </a>
-
-            <a href="device.html">
-                สถานะอุปกรณ์
-            </a>
-
-            <a href="settings.html">
-                ตั้งค่าระบบ
-            </a>
-
-            <a href="about.html">
-                เกี่ยวกับ
-            </a>
-
-            <a class="active" href="servocontrol.html">
-                Servo Control
-            </a>
+            <a href="index.html">หน้าหลัก</a>
+            <a href="temperature.html">อุณหภูมิ</a>
+            <a href="history.html">ประวัติการแจ้งเตือน</a>
+            <a href="device.html">สถานะอุปกรณ์</a>
+            <a href="settings.html">ตั้งค่าระบบ</a>
+            <a href="about.html">เกี่ยวกับ</a>
+            <a class="active" href="servocontrol.html">Servo Control</a>
         </nav>
-
-        <div class="sidebar-footer">
-            “ระบบแจ้งเตือนอัจฉริยะ”
-        </div>
+        <div class="sidebar-footer">“ระบบแจ้งเตือนอัจฉริยะ”</div>
     </aside>
 
     <main class="content">
@@ -194,23 +147,15 @@
                 <div class="sensor-grid">
                     <div class="sensor-box">
                         <div class="sensor-label">ระยะ</div>
-                        <div class="sensor-value">
-                            <span id="distanceValue">--</span> mm
-                        </div>
+                        <div class="sensor-value"><span id="distanceValue">--</span> mm</div>
                     </div>
-
                     <div class="sensor-box">
                         <div class="sensor-label">อุณหภูมิเป้าหมาย</div>
-                        <div class="sensor-value">
-                            <span id="objectTempValue">--</span> °C
-                        </div>
+                        <div class="sensor-value"><span id="objectTempValue">--</span> °C</div>
                     </div>
-
                     <div class="sensor-box">
                         <div class="sensor-label">สถานะ Sensor</div>
-                        <div class="sensor-value" id="sensorStatusValue">
-                            --
-                        </div>
+                        <div class="sensor-value" id="sensorStatusValue">--</div>
                     </div>
                 </div>
 
@@ -228,9 +173,23 @@
                     <div class="pad-empty"></div>
                 </div>
 
-                <div class="servo-status" id="servoStatus">
-                    พร้อมใช้งาน
+                <!-- ส่วนตั้งค่าความเร็วและการจูนที่เพิ่มเข้ามาใหม่ -->
+                <div class="settings-pad">
+                    <div class="setting-group">
+                        <label>ความเร็ว (Speed) <span id="speedDisplay">100%</span></label>
+                        <input type="range" id="sliderSpeed" min="20" max="100" value="100">
+                    </div>
+                    <div class="setting-group">
+                        <label>จูนจุดหยุดนิ่ง แกน X (Trim X) <span id="trimXDisplay">0</span></label>
+                        <input type="range" id="sliderTrimX" min="-20" max="20" value="0">
+                    </div>
+                    <div class="setting-group">
+                        <label>จูนจุดหยุดนิ่ง แกน Y (Trim Y) <span id="trimYDisplay">0</span></label>
+                        <input type="range" id="sliderTrimY" min="-20" max="20" value="0">
+                    </div>
                 </div>
+
+                <div class="servo-status" id="servoStatus">พร้อมใช้งาน</div>
             </div>
         </section>
     </main>
@@ -245,14 +204,35 @@
         const objectTempEl = document.getElementById("objectTempValue");
         const sensorStatusEl = document.getElementById("sensorStatusValue");
 
+        // อัปเดต UI ของ Sliders
+        const sliderSpeed = document.getElementById("sliderSpeed");
+        const sliderTrimX = document.getElementById("sliderTrimX");
+        const sliderTrimY = document.getElementById("sliderTrimY");
+        
+        sliderSpeed.addEventListener("input", (e) => document.getElementById("speedDisplay").textContent = e.target.value + "%");
+        sliderTrimX.addEventListener("input", (e) => document.getElementById("trimXDisplay").textContent = e.target.value);
+        sliderTrimY.addEventListener("input", (e) => document.getElementById("trimYDisplay").textContent = e.target.value);
+
         let activeButton = null;
         let heartbeat = null;
+        let activeRequest = null; // จัดการ Fetch Abort
         let lastX = 0;
         let lastY = 0;
 
-        async function moveCamera(x, y) {
-            lastX = x;
-            lastY = y;
+        async function moveCamera(dirX, dirY) {
+            // คำนวณความเร็ว (หาก dir=0 ผลลัพธ์จะเป็น 0 ทันที)
+            const speed = parseInt(sliderSpeed.value);
+            lastX = dirX * speed; 
+            lastY = dirY * speed;
+
+            const trimX = parseInt(sliderTrimX.value);
+            const trimY = parseInt(sliderTrimY.value);
+
+            // ยกเลิก Request ที่ค้างอยู่ (ช่วยให้คำสั่ง Stop ตอบสนองทันทีโดยไม่ต้องรอ Request ก่อนหน้าทำงานเสร็จ)
+            if (activeRequest) {
+                activeRequest.abort();
+            }
+            activeRequest = new AbortController();
 
             try {
                 const res = await fetch("/api/move", {
@@ -260,10 +240,13 @@
                     headers: {
                         "Content-Type": "application/json"
                     },
+                    signal: activeRequest.signal,
                     body: JSON.stringify({
                         token: API_TOKEN,
-                        x: x,
-                        y: y
+                        x: lastX,       // ส่งค่า -100 ถึง 100 แทนที่จะเป็นแค่ -1, 0, 1
+                        y: lastY,
+                        trim_x: trimX,  // ส่งค่าชดเชยจุดศูนย์กลางให้ Backend
+                        trim_y: trimY
                     })
                 });
 
@@ -272,9 +255,11 @@
                     return;
                 }
 
-                statusEl.textContent = x === 0 && y === 0 ? "หยุดแล้ว" : "กำลังหมุน";
+                statusEl.textContent = (dirX === 0 && dirY === 0) ? "หยุดแล้ว" : `กำลังหมุน (X:${lastX}, Y:${lastY})`;
             } catch (err) {
-                statusEl.textContent = "เชื่อมต่อ server ไม่ได้";
+                if (err.name !== 'AbortError') {
+                    statusEl.textContent = "เชื่อมต่อ server ไม่ได้";
+                }
             }
         }
 
@@ -292,7 +277,7 @@
             moveCamera(0, 0);
         }
 
-        function bindHoldButton(id, x, y) {
+        function bindHoldButton(id, dirX, dirY) {
             const button = document.getElementById(id);
 
             button.addEventListener("pointerdown", function (event) {
@@ -302,15 +287,16 @@
                 button.classList.add("pressed");
                 button.setPointerCapture(event.pointerId);
 
-                moveCamera(x, y);
+                moveCamera(dirX, dirY);
 
                 if (heartbeat) {
                     clearInterval(heartbeat);
                 }
 
+                // ส่งคำสั่งย้ำเพื่อป้องกัน Timeout (ปรับรอบให้สมดุลขึ้น)
                 heartbeat = setInterval(function () {
-                    moveCamera(lastX, lastY);
-                }, 150);
+                    moveCamera(dirX, dirY);
+                }, 250); 
             });
 
             button.addEventListener("pointerup", stopCamera);
@@ -320,10 +306,7 @@
 
         async function readSensors() {
             try {
-                const res = await fetch("/api/sensors", {
-                    cache: "no-store"
-                });
-
+                const res = await fetch("/api/sensors", { cache: "no-store" });
                 const data = await res.json();
 
                 distanceEl.textContent = data.distance_mm >= 0 ? data.distance_mm : "--";
@@ -344,17 +327,12 @@
 
         document.getElementById("btnStop").addEventListener("click", stopCamera);
         window.addEventListener("blur", stopCamera);
-
         document.addEventListener("visibilitychange", function () {
-            if (document.hidden) {
-                stopCamera();
-            }
+            if (document.hidden) stopCamera();
         });
 
         readSensors();
         setInterval(readSensors, 2000);
     </script>
-
 </body>
-
 </html>
