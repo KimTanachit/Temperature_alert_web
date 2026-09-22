@@ -521,4 +521,8 @@ td {
     .filter input {
         flex: 1;
     }
+    #riskLevel {
+    transition: color 0.3s ease;
+    font-weight: bold;
+}
 }

@@ -8,6 +8,26 @@ let resetThreshold = 100;
 
 const MAX_REALTIME_POINTS = 50;
 
+// ฟังก์ชันอัปเดตระดับความเสี่ยงตามอุณหภูมิ
+function updateRiskLevel(temp) {
+  const riskLevelEl = document.getElementById("riskLevel");
+  
+  if (!riskLevelEl) return;
+
+  if (temp <= 38) {
+    riskLevelEl.textContent = "ปกติ";
+    riskLevelEl.style.color = "white"; // สีขาวปกติ (หรือเปลี่ยนเป็น "inherit" หากต้องการใช้สีตามธีม)
+  } else if (temp > 38 && temp <= 50) {
+    riskLevelEl.textContent = "สูงกว่าปกติ";
+    riskLevelEl.style.color = "#FFD700"; // สีเหลือง (ใช้รหัส Hex เพื่อให้อ่านง่ายบนจอ)
+  } else if (temp > 50 && temp <= 80) {
+    riskLevelEl.textContent = "อุณหภูมิสูง มีความเสี่ยงไฟไหม้";
+    riskLevelEl.style.color = "#FFA500"; // สีส้ม
+  } else if (temp > 80) {
+    riskLevelEl.textContent = "อันตราย ออกจากพื้นที่";
+    riskLevelEl.style.color = "#FF0000"; // สีแดง
+  }
+}
 
 // =====================================================
 // FORMAT TIME
