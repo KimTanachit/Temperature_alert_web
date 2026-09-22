@@ -354,73 +354,42 @@ function addRealtimePoint(
 // CURRENT TEMPERATURE
 // =====================================================
 
-function updateCurrent(
-  temp
-) {
+function updateCurrent(temp) {
+  temp = Number(temp);
 
-  temp =
-    Number(temp);
-
-  if (
-    !Number.isFinite(temp)
-  ) {
-
+  if (!Number.isFinite(temp)) {
     return;
   }
 
-  const currentTemp =
-    document.getElementById(
-      "currentTemp"
-    );
-
-  const riskLevel =
-    document.getElementById(
-      "riskLevel"
-    );
-
-  const tempStatus =
-    document.getElementById(
-      "tempStatus"
-    );
+  const currentTemp = document.getElementById("currentTemp");
+  const riskLevel = document.getElementById("riskLevel");
+  const tempStatus = document.getElementById("tempStatus");
 
   if (currentTemp) {
-
-    currentTemp.textContent =
-      `${temp.toFixed(1)} °C`;
+    currentTemp.textContent = `${temp.toFixed(1)} °C`;
   }
 
-  const danger =
-    temp >
-    dangerThreshold;
+  const danger = temp > dangerThreshold;
 
-  if (riskLevel) {
-
-    riskLevel.textContent =
-      danger
-        ? "อันตราย"
-        : "ปกติ";
-  }
+  // ----------------------------------------------------
+  // ลบส่วนนี้ของเดิมออก:
+  // if (riskLevel) {
+  //   riskLevel.textContent = danger ? "อันตราย" : "ปกติ";
+  // }
+  // 
+  // แล้วเปลี่ยนเป็นเรียกใช้ฟังก์ชันที่คุณเขียนไว้แทน:
+  // ----------------------------------------------------
+  updateRiskLevel(temp);
 
   if (tempStatus) {
-
-    tempStatus.textContent =
-      danger
-        ? `เกิน ${dangerThreshold}°C`
-        : "อยู่ในเกณฑ์ปกติ";
+    tempStatus.textContent = danger ? `เกิน ${dangerThreshold}°C` : "อยู่ในเกณฑ์ปกติ";
   }
 
-  if (
-    danger &&
-    !lastAlertState
-  ) {
-
-    showAlert(
-      temp
-    );
+  if (danger && !lastAlertState) {
+    showAlert(temp);
   }
 
-  lastAlertState =
-    danger;
+  lastAlertState = danger;
 }
 
 
