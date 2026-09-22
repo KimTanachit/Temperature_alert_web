@@ -33,7 +33,11 @@ async function loadHistory() {
     const response = await fetch("/api/temperature/history?minutes=43200");
     if (!response.ok) throw new Error("โหลดข้อมูลไม่สำเร็จ");
     
-    allRows = await response.json();
+    const data = await response.json();
+    
+    // เรียงข้อมูลจากเวลาล่าสุด (ใหม่สุด) ลงไปหาเก่าสุด
+    allRows = data.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+    
     render();
   } catch(e) { 
     console.error("Load History Error:", e); 
@@ -56,7 +60,7 @@ function render() {
   
   const body = document.getElementById("historyBody");
   
-  // นำข้อมูลลงตาราง โดยอิงจาก dangerThreshold ที่โหลดมา
+  // นำข้อมูลลงตาราง
   body.innerHTML = rows.length ? rows.map((r, i) => {
     const temp = Number(r.temperature);
     const isDanger = temp > dangerThreshold; 
@@ -78,7 +82,7 @@ async function initHistoryPage() {
   await loadSettings();
   await loadHistory();
   
-  // อัปเดตข้อมูลอัตโนมัติทุกๆ 10 วินาที (ทั้งประวัติและการตั้งค่า)
+  // อัปเดตข้อมูลอัตโนมัติทุกๆ 10 วินาที
   setInterval(async () => {
     await loadSettings();
     await loadHistory();
