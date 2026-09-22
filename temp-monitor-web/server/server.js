@@ -11,6 +11,10 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
+const ESP32_API_TOKEN =
+  process.env.ESP32_API_TOKEN ||
+  "SensorT22";
+
 // รองรับ Reverse Proxy บน Render เพื่อให้ Cookie ทำงานได้ถูกต้อง
 app.set("trust proxy", 1);
 
@@ -266,19 +270,141 @@ async function processTemperature(temp) {
     lastLineAlert = 0;
   }
 
-  if (Date.now() - lastDbSave >= 3 * 60 * 1000) {
-    try {
-      await saveTemperature(temp, lastSensorSeen);
-      console.log("[DB] saved", temp);
-    } catch (err) {
-      console.error("[DB] save error:", err.message);
-    }
-  }
 }
 
 // =====================================================
 // API ROUTES
 // =====================================================
+// =====================================================
+// ESP32 REALTIME
+// รับค่าทุกประมาณ 3 วินาที
+// ไม่บันทึกลง Supabase
+// =====================================================
+app.post("/api/realtime", async (req, res) => {
+  try {
+    const auth = req.headers.authorization || "";
+
+    if (auth !== `Bearer ${ESP32_API_TOKEN}`) {
+      return res.status(401).json({
+        error: "Invalid ESP32 API token"
+      });
+    }
+
+    const temperature = Number(req.body.temperature_c);
+    const deviceId = req.body.device_id || "ESP32_NODE_02";
+
+    if (!Number.isFinite(temperature)) {
+      return res.status(400).json({
+        error: "temperature_c must be a number"
+      });
+    }
+
+    // ประมวลผล realtime + LINE Alert + Socket.IO
+    await processTemperature(temperature);
+
+    // อัปเดตสถานะ device
+    const { error: deviceError } = await supabase
+      .from("device_status")
+      .update({
+        last_seen: new Date().toISOString(),
+        sensor_status: true,
+        wifi_status: true
+      })
+      .eq("id", 1);
+
+    if (deviceError) {
+      console.error(
+        "[DB] device status error:",
+        deviceError.message
+      );
+    }
+
+    console.log(
+      `[REALTIME] ${deviceId}: ${temperature.toFixed(2)}°C`
+    );
+
+    return res.json({
+      ok: true,
+      device_id: deviceId,
+      temperature: temperature
+    });
+
+  } catch (err) {
+
+    console.error(
+      "[REALTIME] error:",
+      err.message
+    );
+
+    return res.status(500).json({
+      error: err.message
+    });
+  }
+});
+
+// =====================================================
+// ESP32 AVERAGE
+// รับค่าเฉลี่ยทุก 3 นาที
+// บันทึกลง Supabase
+// =====================================================
+app.post("/api/average", async (req, res) => {
+  try {
+    const auth = req.headers.authorization || "";
+
+    if (auth !== `Bearer ${ESP32_API_TOKEN}`) {
+      return res.status(401).json({
+        error: "Invalid ESP32 API token"
+      });
+    }
+
+    const temperature = Number(req.body.temperature_c);
+    const deviceId = req.body.device_id || "ESP32_NODE_02";
+    const seq = Number(req.body.seq);
+
+    if (!Number.isFinite(temperature)) {
+      return res.status(400).json({
+        error: "temperature_c must be a number"
+      });
+    }
+
+    if (!Number.isInteger(seq)) {
+      return res.status(400).json({
+        error: "seq must be an integer"
+      });
+    }
+
+    const timestamp = new Date();
+
+    // บันทึกค่าเฉลี่ยลง Supabase
+    await saveTemperature(
+      temperature,
+      timestamp
+    );
+
+    console.log(
+      `[AVERAGE] ${deviceId} | ${temperature.toFixed(2)}°C | SEQ=${seq}`
+    );
+
+    return res.status(201).json({
+      ok: true,
+      device_id: deviceId,
+      temperature_c: temperature,
+      seq: seq,
+      saved_at: timestamp.toISOString()
+    });
+
+  } catch (err) {
+
+    console.error(
+      "[AVERAGE] save error:",
+      err.message
+    );
+
+    return res.status(500).json({
+      error: err.message
+    });
+  }
+});
 
 app.get("/api/temperature/current", (req, res) => {
   res.json({
