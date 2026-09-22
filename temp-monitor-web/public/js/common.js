@@ -1,7 +1,21 @@
+// กำหนด URL สำหรับเรียกใช้งาน API (แก้ไข Path ได้ตามที่ Backend คุณตั้งไว้)
+const API = {
+  settings: "/api/settings" 
+};
+
+// สร้างฟังก์ชัน getJSON สำหรับจัดการดึงและส่งข้อมูล
+async function getJSON(url, options = {}) {
+  const response = await fetch(url, options);
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+  return await response.json();
+}
 document.addEventListener("DOMContentLoaded", async () => {
   // ปุ่มเปิด-ปิดเมนูบนมือถือ
   const menuBtn = document.getElementById("menuBtn");
   const sidebar = document.getElementById("sidebar");
+  
   if (menuBtn && sidebar) {
     menuBtn.addEventListener("click", () => {
       sidebar.classList.toggle("open");
