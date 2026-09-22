@@ -10,15 +10,11 @@
     <link rel="stylesheet" href="css/style.css">
 
     <style>
-        .servo-control-layout {
-            display: grid;
-            grid-template-columns: minmax(520px, 1fr) 380px;
-            gap: 24px;
-            align-items: start;
+        .servo-page {
+            max-width: 760px;
         }
 
-        .servo-card,
-        .thermal-card {
+        .servo-card {
             background: #ffffff;
             border-radius: 12px;
             padding: 24px;
@@ -30,8 +26,7 @@
             font-size: 26px;
         }
 
-        .servo-card p,
-        .thermal-card p {
+        .servo-card p {
             margin: 0 0 20px;
             color: #667085;
         }
@@ -109,38 +104,6 @@
             min-height: 22px;
         }
 
-        .thermal-card h2 {
-            margin: 0 0 6px;
-            font-size: 24px;
-        }
-
-        #thermalCanvas {
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            border-radius: 12px;
-            background: #111827;
-            image-rendering: pixelated;
-        }
-
-        .thermal-info {
-            display: grid;
-            gap: 8px;
-            margin-top: 14px;
-            color: #344054;
-        }
-
-        .thermal-status {
-            margin-top: 12px;
-            color: #667085;
-            font-size: 14px;
-        }
-
-        @media (max-width: 1100px) {
-            .servo-control-layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
         @media (max-width: 640px) {
             .sensor-grid {
                 grid-template-columns: 1fr;
@@ -162,33 +125,59 @@
 
 <body>
 
-    <header class="topbar">
-        <button class="menu-btn" id="menuBtn">☰</button>
-        <div class="top-title">ระบบแจ้งเตือนอุณหภูมิ</div>
-
-        <a href="/login.html" class="top-user" id="userArea"
-            style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; cursor: pointer;">
-            <span>🔔 &nbsp; </span>
-            <span id="userStatusText">ผู้ใช้งานทั่วไป</span>
-            <span> &nbsp; 👤</span>
-        </a>
-    </header>
+  <header class="topbar">
+    <button class="menu-btn" id="menuBtn">☰</button>
+    <div class="top-title">ระบบแจ้งเตือนอุณหภูมิ</div>
+    
+    <!-- เปลี่ยนเป็นแท็ก <a> ครอบทั้งกล่อง และใส่ลิงก์ตรงไปที่ /login.html -->
+    <a href="/login.html" class="top-user" id="userArea" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; cursor: pointer;">
+      <span>🔔 &nbsp; </span>
+      <span id="userStatusText">ผู้ใช้งานทั่วไป</span>
+      <span> &nbsp; 👤</span>
+    </a>
+  </header>
 
     <aside class="sidebar" id="sidebar">
         <div class="brand">
             🔥
-            <span>ระบบแจ้งเตือนอุณหภูมิ</span>
-            <small>FIRE & TEMPERATURE MONITOR</small>
+
+            <span>
+                ระบบแจ้งเตือนอุณหภูมิ
+            </span>
+
+            <small>
+                FIRE & TEMPERATURE MONITOR
+            </small>
         </div>
 
         <nav>
-            <a href="index.html">หน้าหลัก</a>
-            <a href="temperature.html">อุณหภูมิ</a>
-            <a href="history.html">ประวัติการแจ้งเตือน</a>
-            <a href="device.html">สถานะอุปกรณ์</a>
-            <a href="settings.html">ตั้งค่าระบบ</a>
-            <a href="about.html">เกี่ยวกับ</a>
-            <a class="active" href="servocontrol.html">Servo Control</a>
+            <a href="index.html">
+                หน้าหลัก
+            </a>
+
+            <a href="temperature.html">
+                อุณหภูมิ
+            </a>
+
+            <a href="history.html">
+                ประวัติการแจ้งเตือน
+            </a>
+
+            <a href="device.html">
+                สถานะอุปกรณ์
+            </a>
+
+            <a href="settings.html">
+                ตั้งค่าระบบ
+            </a>
+
+            <a href="about.html">
+                เกี่ยวกับ
+            </a>
+
+            <a class="active" href="servocontrol.html">
+                Servo Control
+            </a>
         </nav>
 
         <div class="sidebar-footer">
@@ -197,8 +186,7 @@
     </aside>
 
     <main class="content">
-        <section class="servo-control-layout">
-
+        <section class="servo-page">
             <div class="servo-card">
                 <h1>Servo Control</h1>
                 <p>ควบคุมกล้องและอ่านค่าระยะ/อุณหภูมิผ่านระบบ cloud</p>
@@ -244,24 +232,6 @@
                     พร้อมใช้งาน
                 </div>
             </div>
-
-            <div class="thermal-card">
-                <h2>Thermal Camera</h2>
-                <p>AMG8833 8x8 heatmap</p>
-
-                <canvas id="thermalCanvas" width="320" height="320"></canvas>
-
-                <div class="thermal-info">
-                    <div>Min: <b id="amgMin">-- °C</b></div>
-                    <div>Max: <b id="amgMax">-- °C</b></div>
-                    <div>Center: <b id="amgCenter">-- °C</b></div>
-                </div>
-
-                <div class="thermal-status" id="thermalStatus">
-                    Waiting for AMG8833
-                </div>
-            </div>
-
         </section>
     </main>
 
@@ -367,76 +337,6 @@
             }
         }
 
-        function tempToColor(value, min, max) {
-            const range = Math.max(max - min, 0.01);
-            const t = Math.max(0, Math.min(1, (value - min) / range));
-
-            const r = Math.round(255 * t);
-            const g = Math.round(80 * (1 - Math.abs(t - 0.5) * 2));
-            const b = Math.round(255 * (1 - t));
-
-            return `rgb(${r}, ${g}, ${b})`;
-        }
-
-        async function drawThermalImage() {
-            const canvas = document.getElementById("thermalCanvas");
-
-            if (!canvas) {
-                return;
-            }
-
-            const ctx = canvas.getContext("2d");
-
-            try {
-                const res = await fetch("/api/sensors", {
-                    cache: "no-store"
-                });
-
-                const data = await res.json();
-                const pixels = data.amg_pixels || [];
-
-                document.getElementById("amgMin").textContent =
-                    data.amg_min_temp_c === null || data.amg_min_temp_c === undefined
-                        ? "-- °C"
-                        : `${Number(data.amg_min_temp_c).toFixed(1)} °C`;
-
-                document.getElementById("amgMax").textContent =
-                    data.amg_max_temp_c === null || data.amg_max_temp_c === undefined
-                        ? "-- °C"
-                        : `${Number(data.amg_max_temp_c).toFixed(1)} °C`;
-
-                document.getElementById("amgCenter").textContent =
-                    data.amg_center_temp_c === null || data.amg_center_temp_c === undefined
-                        ? "-- °C"
-                        : `${Number(data.amg_center_temp_c).toFixed(1)} °C`;
-
-                if (!Array.isArray(pixels) || pixels.length !== 64) {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    document.getElementById("thermalStatus").textContent = "No thermal image";
-                    return;
-                }
-
-                const min = Math.min(...pixels);
-                const max = Math.max(...pixels);
-                const cell = canvas.width / 8;
-
-                for (let y = 0; y < 8; y++) {
-                    for (let x = 0; x < 8; x++) {
-                        const temp = Number(pixels[y * 8 + x]);
-                        ctx.fillStyle = tempToColor(temp, min, max);
-                        ctx.fillRect(x * cell, y * cell, cell, cell);
-                    }
-                }
-
-                document.getElementById("thermalStatus").textContent =
-                    Number(data.amg_status) === 1 ? "AMG8833 online" : "AMG8833 offline";
-
-            } catch (err) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                document.getElementById("thermalStatus").textContent = "Thermal fetch failed";
-            }
-        }
-
         bindHoldButton("btnUp", 0, 1);
         bindHoldButton("btnDown", 0, -1);
         bindHoldButton("btnLeft", 1, 0);
@@ -452,10 +352,7 @@
         });
 
         readSensors();
-        drawThermalImage();
-
         setInterval(readSensors, 2000);
-        setInterval(drawThermalImage, 1000);
     </script>
 
 </body>
