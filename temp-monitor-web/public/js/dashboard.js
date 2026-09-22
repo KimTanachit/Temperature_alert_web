@@ -16,19 +16,20 @@ function updateRiskLevel(temp) {
 
   if (temp <= 38) {
     riskLevelEl.textContent = "ปกติ";
-    riskLevelEl.style.color = "black"; // ตัวหนังสือสีดำ (หรือสีเดิมของธีม)
-    riskLevelEl.style.backgroundColor = "transparent"; // เคลียร์สีพื้นหลัง
+    riskLevelEl.style.color = "black"; 
+    riskLevelEl.style.backgroundColor = "transparent"; // ลบสีพื้นหลังออก
+    riskLevelEl.style.padding = "0"; // เอาขอบออกเมื่อเป็นสถานะปกติ
   } else if (temp > 38 && temp <= 50) {
     riskLevelEl.textContent = "สูงกว่าปกติ";
     riskLevelEl.style.color = "black"; 
-    riskLevelEl.style.backgroหundColor = "#FFD700"; // สีเหลือง
+    riskLevelEl.style.backgroundColor = "#FFD700"; // แก้คำที่พิมพ์ผิดตรงนี้แล้ว (สีเหลือง)
   } else if (temp > 50 && temp <= 80) {
     riskLevelEl.textContent = "อุณหภูมิสูง มีความเสี่ยงไฟไหม้";
     riskLevelEl.style.color = "black"; 
     riskLevelEl.style.backgroundColor = "#FFA500"; // สีส้ม
   } else if (temp > 80) {
     riskLevelEl.textContent = "อันตราย ออกจากพื้นที่";
-    riskLevelEl.style.color = "white"; // พื้นแดง ใช้ตัวหนังสือสีขาวจะอ่านง่ายกว่า
+    riskLevelEl.style.color = "white"; 
     riskLevelEl.style.backgroundColor = "#FF0000"; // สีแดง
   }
 }
