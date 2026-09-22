@@ -33,7 +33,7 @@ function updateRiskLevel(temp) {
     subTexts.forEach(el => el.style.color = ""); // คืนค่าสีเทาเดิม
   } else if (temp > 35 && temp <= 45) {
     riskLevelEl.textContent = "สูงกว่าปกติ";
-    cardEl.style.backgroundColor = "#FFD700"; // การ์ดสีเหลือง
+    cardEl.style.backgroundColor = "#f0db68"; // การ์ดสีเหลือง
     riskLevelEl.style.color = "black"; 
     subTexts.forEach(el => el.style.color = "black"); 
   } else if (temp > 45 && temp <= 59) {
