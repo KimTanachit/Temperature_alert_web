@@ -1,489 +1,189 @@
-<!DOCTYPE html>
-<html lang="th">
-
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <title>Servo Control</title>
-
-    <link rel="stylesheet" href="css/style.css">
-
-    <style>
-        .servo-control-layout {
-            display: grid;
-            grid-template-columns: minmax(520px, 1fr) 380px;
-            gap: 24px;
-            align-items: start;
-        }
-
-        .servo-card,
-        .thermal-card {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-        }
-
-        .servo-card h1 {
-            margin: 0 0 8px;
-            font-size: 26px;
-        }
-
-        .servo-card p,
-        .thermal-card p {
-            margin: 0 0 20px;
-            color: #667085;
-        }
-
-        .sensor-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        .sensor-box {
-            border: 1px solid #e4e7ec;
-            border-radius: 10px;
-            padding: 14px;
-            background: #f9fafb;
-        }
-
-        .sensor-label {
-            font-size: 13px;
-            color: #667085;
-            margin-bottom: 6px;
-        }
-
-        .sensor-value {
-            font-size: 22px;
-            font-weight: 700;
-            color: #101828;
-        }
-
-        .control-pad {
-            display: grid;
-            grid-template-columns: 90px 90px 90px;
-            grid-template-rows: 90px 90px 90px;
-            gap: 12px;
-            justify-content: center;
-            align-items: center;
-            margin-top: 8px;
-        }
-
-        .control-pad button {
-            width: 90px;
-            height: 90px;
-            border: none;
-            border-radius: 12px;
-            background: #ff6b35;
-            color: #ffffff;
-            font-size: 32px;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 5px 0 #b8421f;
-        }
-
-        .control-pad button:active,
-        .control-pad button.pressed {
-            transform: translateY(4px);
-            box-shadow: 0 1px 0 #b8421f;
-        }
-
-        .control-pad .stop {
-            background: #d92d20;
-            box-shadow: 0 5px 0 #8f1d14;
-            font-size: 20px;
-        }
-
-        .pad-empty {
-            width: 90px;
-            height: 90px;
-        }
-
-        .servo-status {
-            margin-top: 18px;
-            text-align: center;
-            color: #667085;
-            min-height: 22px;
-        }
-
-        .thermal-card h2 {
-            margin: 0 0 6px;
-            font-size: 24px;
-        }
-
-        #thermalCanvas {
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            border-radius: 12px;
-            background: #111827;
-            image-rendering: pixelated;
-        }
-
-        .thermal-info {
-            display: grid;
-            gap: 8px;
-            margin-top: 14px;
-            color: #344054;
-        }
-
-        .thermal-status {
-            margin-top: 12px;
-            color: #667085;
-            font-size: 14px;
-        }
-
-        @media (max-width: 1100px) {
-            .servo-control-layout {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .sensor-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .control-pad {
-                grid-template-columns: 76px 76px 76px;
-                grid-template-rows: 76px 76px 76px;
-            }
-
-            .control-pad button,
-            .pad-empty {
-                width: 76px;
-                height: 76px;
-            }
-        }
-    </style>
-</head>
-
-<body>
-
-    <header class="topbar">
-        <button class="menu-btn" id="menuBtn">☰</button>
-        <div class="top-title">ระบบแจ้งเตือนอุณหภูมิ</div>
-
-        <a href="/login.html" class="top-user" id="userArea"
-            style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; cursor: pointer;">
-            <span>🔔 &nbsp; </span>
-            <span id="userStatusText">ผู้ใช้งานทั่วไป</span>
-            <span> &nbsp; 👤</span>
-        </a>
-    </header>
-
-    <aside class="sidebar" id="sidebar">
-        <div class="brand">
-            🔥
-            <span>ระบบแจ้งเตือนอุณหภูมิ</span>
-            <small>FIRE & TEMPERATURE MONITOR</small>
-        </div>
-
-        <nav>
-            <a href="index.html">หน้าหลัก</a>
-            <a href="temperature.html">อุณหภูมิ</a>
-            <a href="history.html">ประวัติการแจ้งเตือน</a>
-            <a href="device.html">สถานะอุปกรณ์</a>
-            <a href="settings.html">ตั้งค่าระบบ</a>
-            <a href="about.html">เกี่ยวกับ</a>
-            <a class="active" href="servocontrol.html">Servo Control</a>
-        </nav>
-
-        <div class="sidebar-footer">
-            “ระบบแจ้งเตือนอัจฉริยะ”
-        </div>
-    </aside>
-
-    <main class="content">
-        <section class="servo-control-layout">
-
-            <div class="servo-card">
-                <h1>Servo Control</h1>
-                <p>ควบคุมกล้องและอ่านค่าระยะ/อุณหภูมิผ่านระบบ cloud</p>
-
-                <div class="sensor-grid">
-                    <div class="sensor-box">
-                        <div class="sensor-label">ระยะ</div>
-                        <div class="sensor-value">
-                            <span id="distanceValue">--</span> mm
-                        </div>
-                    </div>
-
-                    <div class="sensor-box">
-                        <div class="sensor-label">อุณหภูมิเป้าหมาย</div>
-                        <div class="sensor-value">
-                            <span id="objectTempValue">--</span> °C
-                        </div>
-                    </div>
-
-                    <div class="sensor-box">
-                        <div class="sensor-label">สถานะ Sensor</div>
-                        <div class="sensor-value" id="sensorStatusValue">
-                            --
-                        </div>
-                    </div>
-                </div>
-
-                <div class="control-pad">
-                    <div class="pad-empty"></div>
-                    <button id="btnUp">▲</button>
-                    <div class="pad-empty"></div>
-
-                    <button id="btnLeft">◀</button>
-                    <button id="btnStop" class="stop">STOP</button>
-                    <button id="btnRight">▶</button>
-
-                    <div class="pad-empty"></div>
-                    <button id="btnDown">▼</button>
-                    <div class="pad-empty"></div>
-                </div>
-
-                <div class="servo-status" id="servoStatus">
-                    พร้อมใช้งาน
-                </div>
-            </div>
-
-            <div class="thermal-card">
-                <h2>Thermal Camera</h2>
-                <p>AMG8833 8x8 heatmap</p>
-
-                <canvas id="thermalCanvas" width="320" height="320"></canvas>
-
-                <div class="thermal-info">
-                    <div>Min: <b id="amgMin">-- °C</b></div>
-                    <div>Max: <b id="amgMax">-- °C</b></div>
-                    <div>Center: <b id="amgCenter">-- °C</b></div>
-                </div>
-
-                <div class="thermal-status" id="thermalStatus">
-                    Waiting for AMG8833
-                </div>
-            </div>
-
-        </section>
-    </main>
-
-    <script src="js/common.js"></script>
-
-    <script>
-        const API_TOKEN = "servo-god-1234";
-
-        const statusEl = document.getElementById("servoStatus");
-        const distanceEl = document.getElementById("distanceValue");
-        const objectTempEl = document.getElementById("objectTempValue");
-        const sensorStatusEl = document.getElementById("sensorStatusValue");
-
-        let activeButton = null;
-        let heartbeat = null;
-        let lastX = 0;
-        let lastY = 0;
-        let isHolding = false;
-
-        async function moveCamera(x, y) {
-            lastX = x;
-            lastY = y;
-
-            try {
-                const res = await fetch("/api/move", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    body: JSON.stringify({
-                        token: API_TOKEN,
-                        x: x,
-                        y: y
-                    })
-                });
-
-                if (!res.ok) {
-                    statusEl.textContent = "ส่งคำสั่งไม่สำเร็จ";
-                    return;
-                }
-
-                statusEl.textContent = x === 0 && y === 0 ? "หยุดแล้ว" : "กำลังหมุน";
-            } catch (err) {
-                statusEl.textContent = "เชื่อมต่อ server ไม่ได้";
-            }
-        }
-
-        function stopCamera() {
-            if (heartbeat) {
-                clearInterval(heartbeat);
-                heartbeat = null;
-            }
-
-            isHolding = false;
-
-            if (activeButton) {
-                activeButton.classList.remove("pressed");
-                activeButton = null;
-            }
-
-            moveCamera(0, 0);
-        }
-
-        function bindHoldButton(id, x, y) {
-            const button = document.getElementById(id);
-
-            button.addEventListener("pointerdown", function (event) {
-                event.preventDefault();
-
-                if (activeButton && activeButton !== button) {
-                    activeButton.classList.remove("pressed");
-                }
-
-                activeButton = button;
-                isHolding = true;
-
-                button.classList.add("pressed");
-                button.setPointerCapture(event.pointerId);
-
-                moveCamera(x, y);
-
-                if (heartbeat) {
-                    clearInterval(heartbeat);
-                }
-
-                heartbeat = setInterval(function () {
-                    if (isHolding) {
-                        moveCamera(lastX, lastY);
-                    }
-                }, 300);
+<script>
+    const API_TOKEN = "servo-god-1234";
+
+    const statusEl = document.getElementById("servoStatus");
+    const distanceEl = document.getElementById("distanceValue");
+    const objectTempEl = document.getElementById("objectTempValue");
+    const sensorStatusEl = document.getElementById("sensorStatusValue");
+
+    let activeButton = null;
+
+    async function moveCamera(x, y) {
+        try {
+            const res = await fetch("/api/move", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    token: API_TOKEN,
+                    x: x,
+                    y: y
+                })
             });
 
-            button.addEventListener("pointerup", function (event) {
-                event.preventDefault();
-                stopCamera();
-            });
-
-            button.addEventListener("pointercancel", stopCamera);
-            button.addEventListener("lostpointercapture", stopCamera);
-            button.addEventListener("pointerleave", function () {
-                if (isHolding && activeButton === button) {
-                    stopCamera();
-                }
-            });
-        }
-
-        async function readSensors() {
-            try {
-                const res = await fetch("/api/sensors", {
-                    cache: "no-store"
-                });
-
-                const data = await res.json();
-
-                distanceEl.textContent = data.distance_mm >= 0 ? data.distance_mm : "--";
-
-                objectTempEl.textContent =
-                    data.room_temp_c === null || data.room_temp_c === undefined
-                        ? "--"
-                        : Number(data.room_temp_c).toFixed(2);
-
-                sensorStatusEl.textContent = data.sensor_text || "--";
-            } catch (err) {
-                sensorStatusEl.textContent = "offline";
-            }
-        }
-
-        function tempToColor(value, min, max) {
-            const range = Math.max(max - min, 0.01);
-            const t = Math.max(0, Math.min(1, (value - min) / range));
-
-            const r = Math.round(255 * t);
-            const g = Math.round(80 * (1 - Math.abs(t - 0.5) * 2));
-            const b = Math.round(255 * (1 - t));
-
-            return `rgb(${r}, ${g}, ${b})`;
-        }
-
-        async function drawThermalImage() {
-            const canvas = document.getElementById("thermalCanvas");
-
-            if (!canvas) {
+            if (!res.ok) {
+                statusEl.textContent = "ส่งคำสั่งไม่สำเร็จ";
                 return;
             }
 
-            const ctx = canvas.getContext("2d");
+            statusEl.textContent = x === 0 && y === 0 ? "หยุดแล้ว" : "กำลังหมุน";
+        } catch (err) {
+            statusEl.textContent = "เชื่อมต่อ server ไม่ได้";
+        }
+    }
 
-            try {
-                const res = await fetch("/api/sensors", {
-                    cache: "no-store"
-                });
-
-                const data = await res.json();
-                const pixels = data.amg_pixels || [];
-
-                document.getElementById("amgMin").textContent =
-                    data.amg_min_temp_c === null || data.amg_min_temp_c === undefined
-                        ? "-- °C"
-                        : `${Number(data.amg_min_temp_c).toFixed(1)} °C`;
-
-                document.getElementById("amgMax").textContent =
-                    data.amg_max_temp_c === null || data.amg_max_temp_c === undefined
-                        ? "-- °C"
-                        : `${Number(data.amg_max_temp_c).toFixed(1)} °C`;
-
-                document.getElementById("amgCenter").textContent =
-                    data.amg_center_temp_c === null || data.amg_center_temp_c === undefined
-                        ? "-- °C"
-                        : `${Number(data.amg_center_temp_c).toFixed(1)} °C`;
-
-                if (!Array.isArray(pixels) || pixels.length !== 64) {
-                    ctx.clearRect(0, 0, canvas.width, canvas.height);
-                    document.getElementById("thermalStatus").textContent = "No thermal image";
-                    return;
-                }
-
-                const min = Math.min(...pixels);
-                const max = Math.max(...pixels);
-                const cell = canvas.width / 8;
-
-                for (let row = 0; row < 8; row++) {
-                    for (let col = 0; col < 8; col++) {
-                        const temp = Number(pixels[row * 8 + col]);
-
-                        ctx.fillStyle = tempToColor(temp, min, max);
-                        ctx.fillRect(col * cell, row * cell, cell, cell);
-
-                        ctx.strokeStyle = "rgba(255,255,255,0.25)";
-                        ctx.strokeRect(col * cell, row * cell, cell, cell);
-                    }
-                }
-
-                document.getElementById("thermalStatus").textContent =
-                    Number(data.amg_status) === 1 ? "AMG8833 online" : "AMG8833 offline";
-
-            } catch (err) {
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                document.getElementById("thermalStatus").textContent = "Thermal fetch failed";
-            }
+    function stopCamera() {
+        if (activeButton) {
+            activeButton.classList.remove("pressed");
+            activeButton = null;
         }
 
-        bindHoldButton("btnUp", 0, -1);
-        bindHoldButton("btnDown", 0, 1);
-        bindHoldButton("btnLeft", -1, 0);
-        bindHoldButton("btnRight", 1, 0);
+        moveCamera(0, 0);
+    }
 
-        document.getElementById("btnStop").addEventListener("click", stopCamera);
-        window.addEventListener("blur", stopCamera);
+    function bindHoldButton(id, x, y) {
+        const button = document.getElementById(id);
 
-        document.addEventListener("visibilitychange", function () {
-            if (document.hidden) {
-                stopCamera();
+        button.addEventListener("pointerdown", function (event) {
+            event.preventDefault();
+
+            if (activeButton && activeButton !== button) {
+                activeButton.classList.remove("pressed");
             }
+
+            activeButton = button;
+            button.classList.add("pressed");
+
+            try {
+                button.setPointerCapture(event.pointerId);
+            } catch (err) {}
+
+            moveCamera(x, y);
         });
 
-        readSensors();
-        drawThermalImage();
+        button.addEventListener("pointerup", function (event) {
+            event.preventDefault();
+            stopCamera();
+        });
 
-        setInterval(readSensors, 2000);
-        setInterval(drawThermalImage, 1000);
-    </script>
+        button.addEventListener("pointercancel", stopCamera);
+        button.addEventListener("lostpointercapture", stopCamera);
+        button.addEventListener("pointerleave", stopCamera);
+    }
 
-</body>
+    async function readSensors() {
+        try {
+            const res = await fetch("/api/sensors", {
+                cache: "no-store"
+            });
 
-</html>
+            const data = await res.json();
+
+            distanceEl.textContent = data.distance_mm >= 0 ? data.distance_mm : "--";
+
+            objectTempEl.textContent =
+                data.room_temp_c === null || data.room_temp_c === undefined
+                    ? "--"
+                    : Number(data.room_temp_c).toFixed(2);
+
+            sensorStatusEl.textContent = data.sensor_text || "--";
+        } catch (err) {
+            sensorStatusEl.textContent = "offline";
+        }
+    }
+
+    function tempToColor(value, min, max) {
+        const range = Math.max(max - min, 0.01);
+        const t = Math.max(0, Math.min(1, (value - min) / range));
+
+        const r = Math.round(255 * t);
+        const g = Math.round(80 * (1 - Math.abs(t - 0.5) * 2));
+        const b = Math.round(255 * (1 - t));
+
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    async function drawThermalImage() {
+        const canvas = document.getElementById("thermalCanvas");
+
+        if (!canvas) {
+            return;
+        }
+
+        const ctx = canvas.getContext("2d");
+
+        try {
+            const res = await fetch("/api/sensors", {
+                cache: "no-store"
+            });
+
+            const data = await res.json();
+            const pixels = data.amg_pixels || [];
+
+            document.getElementById("amgMin").textContent =
+                data.amg_min_temp_c === null || data.amg_min_temp_c === undefined
+                    ? "-- °C"
+                    : `${Number(data.amg_min_temp_c).toFixed(1)} °C`;
+
+            document.getElementById("amgMax").textContent =
+                data.amg_max_temp_c === null || data.amg_max_temp_c === undefined
+                    ? "-- °C"
+                    : `${Number(data.amg_max_temp_c).toFixed(1)} °C`;
+
+            document.getElementById("amgCenter").textContent =
+                data.amg_center_temp_c === null || data.amg_center_temp_c === undefined
+                    ? "-- °C"
+                    : `${Number(data.amg_center_temp_c).toFixed(1)} °C`;
+
+            if (!Array.isArray(pixels) || pixels.length !== 64) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                document.getElementById("thermalStatus").textContent = "No thermal image";
+                return;
+            }
+
+            const min = Math.min(...pixels);
+            const max = Math.max(...pixels);
+            const cell = canvas.width / 8;
+
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const temp = Number(pixels[row * 8 + col]);
+
+                    ctx.fillStyle = tempToColor(temp, min, max);
+                    ctx.fillRect(col * cell, row * cell, cell, cell);
+
+                    ctx.strokeStyle = "rgba(255,255,255,0.25)";
+                    ctx.strokeRect(col * cell, row * cell, cell, cell);
+                }
+            }
+
+            document.getElementById("thermalStatus").textContent =
+                Number(data.amg_status) === 1 ? "AMG8833 online" : "AMG8833 offline";
+
+        } catch (err) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById("thermalStatus").textContent = "Thermal fetch failed";
+        }
+    }
+
+    bindHoldButton("btnUp", 0, -1);
+    bindHoldButton("btnDown", 0, 1);
+    bindHoldButton("btnLeft", -1, 0);
+    bindHoldButton("btnRight", 1, 0);
+
+    document.getElementById("btnStop").addEventListener("click", stopCamera);
+    window.addEventListener("blur", stopCamera);
+
+    document.addEventListener("visibilitychange", function () {
+        if (document.hidden) {
+            stopCamera();
+        }
+    });
+
+    readSensors();
+    drawThermalImage();
+
+    setInterval(readSensors, 2000);
+    setInterval(drawThermalImage, 1000);
+</script>
