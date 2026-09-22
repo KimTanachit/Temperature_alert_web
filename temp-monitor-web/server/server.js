@@ -342,6 +342,13 @@ app.post("/api/realtime", async (req, res) => {
   }
 });
 
+app.get("/api/realtime", (req, res) => {
+  res.json({
+    ok: true,
+    temperature: currentTemperature,
+    last_seen: lastSensorSeen,
+  });
+});
 // =====================================================
 // ESP32 AVERAGE
 // รับค่าเฉลี่ยทุก 3 นาที
