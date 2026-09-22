@@ -279,6 +279,7 @@
         let heartbeat = null;
         let lastX = 0;
         let lastY = 0;
+        let isHolding = false;
 
         async function moveCamera(x, y) {
             lastX = x;
@@ -314,6 +315,8 @@
                 heartbeat = null;
             }
 
+            isHolding = false;
+
             if (activeButton) {
                 activeButton.classList.remove("pressed");
                 activeButton = null;
@@ -328,7 +331,13 @@
             button.addEventListener("pointerdown", function (event) {
                 event.preventDefault();
 
+                if (activeButton && activeButton !== button) {
+                    activeButton.classList.remove("pressed");
+                }
+
                 activeButton = button;
+                isHolding = true;
+
                 button.classList.add("pressed");
                 button.setPointerCapture(event.pointerId);
 
@@ -339,13 +348,24 @@
                 }
 
                 heartbeat = setInterval(function () {
-                    moveCamera(lastX, lastY);
-                }, 150);
+                    if (isHolding) {
+                        moveCamera(lastX, lastY);
+                    }
+                }, 300);
             });
 
-            button.addEventListener("pointerup", stopCamera);
+            button.addEventListener("pointerup", function (event) {
+                event.preventDefault();
+                stopCamera();
+            });
+
             button.addEventListener("pointercancel", stopCamera);
             button.addEventListener("lostpointercapture", stopCamera);
+            button.addEventListener("pointerleave", function () {
+                if (isHolding && activeButton === button) {
+                    stopCamera();
+                }
+            });
         }
 
         async function readSensors() {
@@ -357,9 +377,11 @@
                 const data = await res.json();
 
                 distanceEl.textContent = data.distance_mm >= 0 ? data.distance_mm : "--";
-                objectTempEl.textContent = data.object_temp_c === null || data.object_temp_c === undefined
-                    ? "--"
-                    : Number(data.object_temp_c).toFixed(2);
+
+                objectTempEl.textContent =
+                    data.room_temp_c === null || data.room_temp_c === undefined
+                        ? "--"
+                        : Number(data.room_temp_c).toFixed(2);
 
                 sensorStatusEl.textContent = data.sensor_text || "--";
             } catch (err) {
@@ -420,11 +442,15 @@
                 const max = Math.max(...pixels);
                 const cell = canvas.width / 8;
 
-                for (let y = 0; y < 8; y++) {
-                    for (let x = 0; x < 8; x++) {
-                        const temp = Number(pixels[y * 8 + x]);
+                for (let row = 0; row < 8; row++) {
+                    for (let col = 0; col < 8; col++) {
+                        const temp = Number(pixels[row * 8 + col]);
+
                         ctx.fillStyle = tempToColor(temp, min, max);
-                        ctx.fillRect(x * cell, y * cell, cell, cell);
+                        ctx.fillRect(col * cell, row * cell, cell, cell);
+
+                        ctx.strokeStyle = "rgba(255,255,255,0.25)";
+                        ctx.strokeRect(col * cell, row * cell, cell, cell);
                     }
                 }
 
@@ -437,10 +463,10 @@
             }
         }
 
-        bindHoldButton("btnUp", 0, 1);
-        bindHoldButton("btnDown", 0, -1);
-        bindHoldButton("btnLeft", 1, 0);
-        bindHoldButton("btnRight", -1, 0);
+        bindHoldButton("btnUp", 0, -1);
+        bindHoldButton("btnDown", 0, 1);
+        bindHoldButton("btnLeft", -1, 0);
+        bindHoldButton("btnRight", 1, 0);
 
         document.getElementById("btnStop").addEventListener("click", stopCamera);
         window.addEventListener("blur", stopCamera);
