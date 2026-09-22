@@ -550,17 +550,21 @@ app.post("/api/sensors", (req, res) => {
     updatedAt: Date.now(),
   };
 
- if (servoSensors.room_temp_c !== null) {
-    // ลบ await ออก ปล่อยให้อัปเดตกราฟและ DB ทำงานเบื้องหลัง
-    processTemperature(servoSensors.room_temp_c).catch(err => {
-        console.error("[Dashboard Update Error]:", err.message);
-    });
-}
-
   res.json({
     ok: true,
     sensors: servoSensors,
   });
+  if (servoSensors.room_temp_c !== null) {
+    // อัปเดตตัวแปรส่วนกลางของเซิร์ฟเวอร์
+    currentTemperature = servoSensors.room_temp_c;
+    lastSensorSeen = new Date();
+
+    // กระจายข้อมูลให้ dashboard.js วาดกราฟและเปลี่ยนตัวเลขทันที
+    io.emit("temperature", {
+      temperature: currentTemperature,
+      timestamp: lastSensorSeen.toISOString(),
+    });
+  }
 });
 
 app.get("/api/sensors", (req, res) => {
