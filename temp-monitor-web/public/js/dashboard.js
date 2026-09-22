@@ -9,43 +9,61 @@ let resetThreshold = 100;
 const MAX_REALTIME_POINTS = 50;
 
 // ฟังก์ชันอัปเดตระดับความเสี่ยงตามอุณหภูมิ
+// ฟังก์ชันอัปเดตระดับความเสี่ยงแบบปรับตามตั้งค่าผู้ใช้อัตโนมัติ
 function updateRiskLevel(temp) {
   const riskLevelEl = document.getElementById("riskLevel");
   if (!riskLevelEl) return;
 
-  // หาการ์ด (กล่อง .stat-card) ที่ครอบ id="riskLevel" นี้อยู่
   const cardEl = riskLevelEl.closest('.stat-card');
   if (!cardEl) return;
 
-  // ดึงข้อความอธิบาย (span, small) ภายในการ์ดมาด้วย เพื่อปรับสีตัวหนังสือให้อ่านง่าย
   const subTexts = cardEl.querySelectorAll('span, small');
 
-  // ลบกรอบที่เคยตั้งไว้ที่ตัวหนังสือบรรทัดเดียวออก
   riskLevelEl.style.backgroundColor = "transparent";
   riskLevelEl.style.padding = "0";
-  riskLevelEl.style.display = "block"; // คืนค่าการแสดงผลปกติ
+  riskLevelEl.style.display = "block";
 
-  // เริ่มเช็คอุณหภูมิและเปลี่ยนสี **ที่การ์ด**
-  if (temp <= 35) {
+  // ดึงค่าจากตัวแปร Global ที่โหลดมาจากการตั้งค่า
+  let safeZone = resetThreshold; // ค่าปลดการแจ้งเตือน (เช่น 35)
+  let dangerZone = dangerThreshold; // ค่าแจ้งเตือน (เช่น 40)
+  
+  // ป้องกัน Error กรณีผู้ใช้ตั้งค่าปลดแจ้งเตือนสูงกว่าค่าอันตราย
+  if (safeZone >= dangerZone) {
+    safeZone = dangerZone - 5; 
+  }
+  
+  // คำนวณช่วงตรงกลางระหว่างปกติและอันตราย
+  const gap = dangerZone - safeZone;
+  const midZone = safeZone + (gap / 2);
+
+  // เริ่มเช็คเงื่อนไขจากค่าไดนามิก
+  if (temp <= safeZone) {
+    // 1. ระดับปกติ (อุณหภูมิต่ำกว่าหรือเท่ากับค่าปลดแจ้งเตือน)
     riskLevelEl.textContent = "ปกติ";
-    cardEl.style.backgroundColor = "#f8fcff"; // สีพื้นหลังการ์ดตอนปกติ (ดึงมาจาก CSS เดิมของคุณ)
-    riskLevelEl.style.color = "black"; 
-    subTexts.forEach(el => el.style.color = ""); // คืนค่าสีเทาเดิม
-  } else if (temp > 35 && temp <= 45) {
+    cardEl.style.backgroundColor = "#f8fcff"; 
+    riskLevelEl.style.color = "black";
+    subTexts.forEach(el => el.style.color = ""); 
+
+  } else if (temp > safeZone && temp <= midZone) {
+    // 2. ระดับเฝ้าระวังสีเหลือง (เริ่มเลยค่าปกติมาครึ่งทาง)
     riskLevelEl.textContent = "สูงกว่าปกติ";
-    cardEl.style.backgroundColor = "#f0db68"; // การ์ดสีเหลือง
-    riskLevelEl.style.color = "black"; 
-    subTexts.forEach(el => el.style.color = "black"); 
-  } else if (temp > 45 && temp <= 59) {
+    cardEl.style.backgroundColor = "#FFD700"; 
+    riskLevelEl.style.color = "black";
+    subTexts.forEach(el => el.style.color = "black");
+
+  } else if (temp > midZone && temp <= dangerZone) {
+    // 3. ระดับเสี่ยงสีส้ม (ใกล้ถึงจุดอันตราย)
     riskLevelEl.textContent = "อุณหภูมิสูง มีความเสี่ยงไฟไหม้";
-    cardEl.style.backgroundColor = "#FFA500"; // การ์ดสีส้ม
-    riskLevelEl.style.color = "black"; 
-    subTexts.forEach(el => el.style.color = "black"); 
-  } else if (temp >= 60) {
+    cardEl.style.backgroundColor = "#FFA500"; 
+    riskLevelEl.style.color = "black";
+    subTexts.forEach(el => el.style.color = "black");
+
+  } else if (temp > dangerZone) {
+    // 4. ระดับอันตรายสีแดง (ทะลุค่าที่ตั้งไว้)
     riskLevelEl.textContent = "อันตราย ออกจากพื้นที่";
-    cardEl.style.backgroundColor = "#FF0000"; // การ์ดสีแดง
-    riskLevelEl.style.color = "white"; // เปลี่ยนตัวอักษรหลักเป็นสีขาว
-    subTexts.forEach(el => el.style.color = "white"); // เปลี่ยนข้อความเล็กๆ เป็นสีขาวด้วยเพื่อให้อ่านง่ายบนพื้นแดง
+    cardEl.style.backgroundColor = "#FF0000"; 
+    riskLevelEl.style.color = "white"; 
+    subTexts.forEach(el => el.style.color = "white"); 
   }
 }
 
