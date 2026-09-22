@@ -1,0 +1,242 @@
+import json
+import ssl
+import threading
+import time
+from urllib import request, parse
+
+from arduino.app_utils import App, Bridge
+
+CLOUD_BASE_URL = "https://temperature-alert-web-1.onrender.com"
+API_TOKEN = "servo-god-1234"
+
+# ==========================================
+# เพิ่มการตั้งค่า Supabase
+# ==========================================
+SUPABASE_URL = "https://<YOUR_PROJECT_ID>.supabase.co/rest/v1/temperature_readings"
+SUPABASE_KEY = "YOUR_ANON_KEY"
+SUPABASE_INTERVAL = 180.0 # 3 นาที (180 วินาที)
+
+# ตัวแปรสำหรับคำนวณค่าเฉลี่ย
+temp_sum = 0.0
+temp_count = 0
+last_supabase_upload = time.time()
+# ==========================================
+
+SENSOR_UPLOAD_INTERVAL = 3.0
+COMMAND_TIMEOUT = 1.0
+
+SSL_CONTEXT = ssl._create_unverified_context()
+
+last_command = {
+    "x": 0,
+    "y": 0,
+    "updatedAt": 0
+}
+
+last_cloud_seen = time.time()
+
+
+def cloud_get_json(path, timeout=30):
+    url = f"{CLOUD_BASE_URL}{path}"
+    with request.urlopen(url, timeout=timeout, context=SSL_CONTEXT) as response:
+        body = response.read().decode("utf-8", errors="replace").strip()
+        if not body:
+            raise ValueError("empty cloud response")
+        try:
+            return json.loads(body)
+        except Exception:
+            print("NON JSON RESPONSE:", body[:300], flush=True)
+            raise
+
+
+def cloud_post_json(path, payload, timeout=5):
+    url = f"{CLOUD_BASE_URL}{path}"
+    body = json.dumps(payload).encode("utf-8")
+    req = request.Request(
+        url,
+        data=body,
+        headers={"Content-Type": "application/json"},
+        method="POST"
+    )
+    with request.urlopen(req, timeout=timeout, context=SSL_CONTEXT) as response:
+        body = response.read().decode("utf-8", errors="replace").strip()
+        if not body:
+            return {}
+        try:
+            return json.loads(body)
+        except Exception:
+            print("NON JSON POST RESPONSE:", body[:300], flush=True)
+            return {}
+
+
+# ==========================================
+# เพิ่มฟังก์ชันส่งข้อมูลเข้า Supabase
+# ==========================================
+def post_to_supabase(average_temp):
+    if average_temp is None:
+        return
+        
+    payload = {"temperature": round(average_temp, 2)}
+    body = json.dumps(payload).encode("utf-8")
+    
+    req = request.Request(
+        SUPABASE_URL,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "apikey": SUPABASE_KEY,
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Prefer": "return=minimal"
+        },
+        method="POST"
+    )
+    
+    try:
+        with request.urlopen(req, timeout=5, context=SSL_CONTEXT) as response:
+            if response.getcode() in [200, 201, 204]:
+                print(f"SUPABASE POST SUCCESS: {round(average_temp, 2)}C", flush=True)
+            else:
+                print(f"SUPABASE POST FAILED: HTTP {response.getcode()}", flush=True)
+    except Exception as err:
+        print("SUPABASE POST ERROR:", err, flush=True)
+# ==========================================
+
+
+def bridge_int(name, default=-99999):
+    try:
+        return int(Bridge.call(name))
+    except Exception as err:
+        print(f"BRIDGE ERROR {name}:", err, flush=True)
+        return default
+
+
+def set_movement(x, y):
+    try:
+        result = Bridge.call("set_movement", int(x), int(y))
+        return int(result) == 1
+    except Exception as err:
+        print("MOVE ERROR:", err, flush=True)
+        return False
+
+
+def c100_to_c(value):
+    if value <= -99999:
+        return None
+    return value / 100.0
+
+
+def read_sensors():
+    object_temp_c100 = bridge_int("read_object_temp_c100")
+    ambient_temp_c100 = bridge_int("read_ambient_temp_c100")
+    ds18b20_temp_c100 = bridge_int("read_ds18b20_temp_c100")
+    distance_mm = bridge_int("read_distance_mm", -1)
+    sensor_status = bridge_int("sensor_status", 0)
+    mlx_address = bridge_int("read_mlx_address", -1)
+    ds18b20_status = bridge_int("read_ds18b20_status", 0)
+    buzzer_status = bridge_int("read_buzzer_status", 0)
+
+    object_temp_c = c100_to_c(object_temp_c100)
+    ambient_temp_c = c100_to_c(ambient_temp_c100)
+    ds18b20_temp_c = c100_to_c(ds18b20_temp_c100)
+
+    parts = []
+    if sensor_status & 1: parts.append("MLX90614 OK")
+    else: parts.append("MLX90614 missing")
+    if sensor_status & 2: parts.append("VL53L0X OK")
+    else: parts.append("VL53L0X missing")
+    if sensor_status & 4: parts.append("DS18B20 OK")
+    else: parts.append("DS18B20 missing")
+
+    return {
+        "token": API_TOKEN,
+        "object_temp_c": object_temp_c,
+        "ambient_temp_c": ambient_temp_c,
+        "room_temp_c": ds18b20_temp_c,
+        "ds18b20_temp_c": ds18b20_temp_c,
+        "distance_mm": distance_mm,
+        "sensor_status": sensor_status,
+        "sensor_text": " / ".join(parts),
+        "mlx_address": mlx_address,
+        "ds18b20_status": ds18b20_status,
+        "buzzer_status": buzzer_status
+    }
+
+
+def handle_command(command):
+    global last_command
+    global last_cloud_seen
+    now = time.time()
+    x = int(command.get("x", 0))
+    y = int(command.get("y", 0))
+    updated_at = int(command.get("updatedAt", 0))
+    if x < -1 or x > 1 or y < -1 or y > 1:
+        x = 0
+        y = 0
+    last_cloud_seen = now
+    command_changed = (updated_at != last_command["updatedAt"] or x != last_command["x"] or y != last_command["y"])
+    if command_changed:
+        ok = set_movement(x, y)
+        print(f"SET MOVEMENT x={x} y={y} ok={ok}", flush=True)
+        if ok:
+            last_command = {"x": x, "y": y, "updatedAt": updated_at}
+
+
+def command_loop():
+    global last_command
+    global last_cloud_seen
+    while True:
+        try:
+            query = parse.urlencode({"token": API_TOKEN, "since": last_command["updatedAt"]})
+            command = cloud_get_json(f"/api/command/long?{query}", timeout=40)
+            handle_command(command)
+        except Exception as err:
+            print("COMMAND CLOUD ERROR:", err, flush=True)
+            if time.time() - last_cloud_seen >= COMMAND_TIMEOUT:
+                set_movement(0, 0)
+                last_command = {"x": 0, "y": 0, "updatedAt": 0}
+            time.sleep(1.0)
+
+
+def sensor_loop():
+    global temp_sum, temp_count, last_supabase_upload
+    
+    while True:
+        try:
+            sensors = read_sensors()
+            print("ROOM TEMP:", sensors.get("room_temp_c"), flush=True)
+            print("BUZZER:", sensors.get("buzzer_status"), flush=True)
+
+            # 1. ส่งค่า Real-time ขึ้นเว็บบอร์ดหลักตามปกติ
+            cloud_post_json("/api/sensors", sensors, timeout=5)
+
+            # 2. บันทึกค่าสะสมสำหรับการหาค่าเฉลี่ย 
+            # (ดึงค่า room_temp_c มาใช้ หากต้องการใช้ object_temp_c ให้เปลี่ยน key ตรงนี้)
+            current_temp = sensors.get("room_temp_c")
+            if current_temp is not None:
+                temp_sum += current_temp
+                temp_count += 1
+
+            # 3. ตรวจสอบว่าครบ 3 นาที หรือยัง
+            now = time.time()
+            if now - last_supabase_upload >= SUPABASE_INTERVAL:
+                if temp_count > 0:
+                    average_temp = temp_sum / temp_count
+                    post_to_supabase(average_temp)
+                
+                # รีเซ็ตค่ากลับเป็นศูนย์เพื่อเริ่มรอบใหม่
+                temp_sum = 0.0
+                temp_count = 0
+                last_supabase_upload = now
+
+        except Exception as err:
+            print("SENSOR CLOUD ERROR:", err, flush=True)
+
+        time.sleep(SENSOR_UPLOAD_INTERVAL)
+
+
+threading.Thread(target=command_loop, daemon=True).start()
+threading.Thread(target=sensor_loop, daemon=True).start()
+
+print("CLOUD LONG POLLING + ROOM TEMP + BUZZER + SUPABASE STARTED", flush=True)
+
+App.run()
