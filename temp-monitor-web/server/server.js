@@ -556,7 +556,29 @@ let servoCommand = {
   updatedAt: Date.now(),
 };
 
-// ... (ส่วน servoSensors กับตัวแปรอื่นๆ คงเดิม) ...
+let servoSensors = {
+  distance_mm: -1,
+  object_temp_c: null,
+  ambient_temp_c: null,
+
+  room_temp_c: null,
+  ds18b20_temp_c: null,
+  ds18b20_status: 0,
+
+  amg_status: 0,
+  amg_min_temp_c: null,
+  amg_max_temp_c: null,
+  amg_center_temp_c: null,
+  amg_pixels: [],
+
+  buzzer_status: 0,
+
+  sensor_status: 0,
+  sensor_text: "waiting for board",
+  mlx_address: -1,
+
+  updatedAt: Date.now(),
+};
 
 let servoWaiters = [];
 const SERVO_API_TOKEN = process.env.API_TOKEN || "servo-god-1234";
