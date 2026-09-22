@@ -453,7 +453,6 @@ function sendCommandToWaiters() {
   });
 }
 
-// บังคับเฉพาะ Admin เท่านั้นที่สั่งขยับ Servo ได้
 app.post("/api/move", requireAdmin, (req, res) => {
   const { token, x, y } = req.body;
 
@@ -472,20 +471,23 @@ app.post("/api/move", requireAdmin, (req, res) => {
     return res.status(400).json({ error: "x/y must be -1, 0, or 1" });
   }
 
-  servoCommand = {
-    x: nextX,
-    y: nextY,
-    updatedAt: Date.now(),
-  };
+  const changed = servoCommand.x !== nextX || servoCommand.y !== nextY;
 
-  sendCommandToWaiters();
+  if (changed) {
+    servoCommand = {
+      x: nextX,
+      y: nextY,
+      updatedAt: Date.now(),
+    };
+
+    sendCommandToWaiters();
+  }
 
   res.json({
     ok: true,
     command: servoCommand,
   });
 });
-
 app.get("/api/command", (req, res) => {
   if (req.query.token !== SERVO_API_TOKEN) {
     return res.status(401).json({ error: "bad token" });
