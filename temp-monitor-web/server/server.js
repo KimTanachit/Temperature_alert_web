@@ -421,12 +421,23 @@ let servoSensors = {
   distance_mm: -1,
   object_temp_c: null,
   ambient_temp_c: null,
+
   room_temp_c: null,
   ds18b20_temp_c: null,
+  ds18b20_status: 0,
+
+  amg_status: 0,
+  amg_min_temp_c: null,
+  amg_max_temp_c: null,
+  amg_center_temp_c: null,
+  amg_pixels: [],
+
+  buzzer_status: 0,
+
   sensor_status: 0,
   sensor_text: "waiting for board",
   mlx_address: -1,
-  ds18b20_status: 0,
+
   updatedAt: Date.now(),
 };
 
@@ -436,6 +447,7 @@ const SERVO_API_TOKEN = process.env.API_TOKEN || "servo-god-1234";
 function sendCommandToWaiters() {
   const waiters = servoWaiters;
   servoWaiters = [];
+
   waiters.forEach((res) => {
     res.json(servoCommand);
   });
@@ -460,24 +472,25 @@ app.post("/api/move", requireAdmin, (req, res) => {
     return res.status(400).json({ error: "x/y must be -1, 0, or 1" });
   }
 
-  const changed = servoCommand.x !== nextX || servoCommand.y !== nextY;
+  servoCommand = {
+    x: nextX,
+    y: nextY,
+    updatedAt: Date.now(),
+  };
 
-  if (changed) {
-    servoCommand = {
-      x: nextX,
-      y: nextY,
-      updatedAt: Date.now(),
-    };
-    sendCommandToWaiters();
-  }
+  sendCommandToWaiters();
 
-  res.json({ ok: true, command: servoCommand });
+  res.json({
+    ok: true,
+    command: servoCommand,
+  });
 });
 
 app.get("/api/command", (req, res) => {
   if (req.query.token !== SERVO_API_TOKEN) {
     return res.status(401).json({ error: "bad token" });
   }
+
   res.json(servoCommand);
 });
 
@@ -514,16 +527,30 @@ app.post("/api/sensors", (req, res) => {
     distance_mm: Number(req.body.distance_mm ?? -1),
     object_temp_c: req.body.object_temp_c ?? null,
     ambient_temp_c: req.body.ambient_temp_c ?? null,
+
     room_temp_c: req.body.room_temp_c ?? null,
     ds18b20_temp_c: req.body.ds18b20_temp_c ?? null,
+    ds18b20_status: Number(req.body.ds18b20_status ?? 0),
+
+    amg_status: Number(req.body.amg_status ?? 0),
+    amg_min_temp_c: req.body.amg_min_temp_c ?? null,
+    amg_max_temp_c: req.body.amg_max_temp_c ?? null,
+    amg_center_temp_c: req.body.amg_center_temp_c ?? null,
+    amg_pixels: Array.isArray(req.body.amg_pixels) ? req.body.amg_pixels : [],
+
+    buzzer_status: Number(req.body.buzzer_status ?? 0),
+
     sensor_status: Number(req.body.sensor_status ?? 0),
     sensor_text: req.body.sensor_text || "unknown",
     mlx_address: Number(req.body.mlx_address ?? -1),
-    ds18b20_status: Number(req.body.ds18b20_status ?? 0),
+
     updatedAt: Date.now(),
   };
 
-  res.json({ ok: true, sensors: servoSensors });
+  res.json({
+    ok: true,
+    sensors: servoSensors,
+  });
 });
 
 app.get("/api/sensors", (req, res) => {
