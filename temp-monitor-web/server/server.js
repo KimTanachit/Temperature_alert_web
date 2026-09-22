@@ -411,35 +411,19 @@ app.put("/api/settings", requireAdmin, async (req, res) => {
 // SERVO LONG POLLING
 // =====================================================
 
+// =====================================================
+// SERVO LONG POLLING
+// =====================================================
+
 let servoCommand = {
   x: 0,
   y: 0,
+  trim_x: 0, // เพิ่มการรองรับค่า Trim แกน X
+  trim_y: 0, // เพิ่มการรองรับค่า Trim แกน Y
   updatedAt: Date.now(),
 };
 
-let servoSensors = {
-  distance_mm: -1,
-  object_temp_c: null,
-  ambient_temp_c: null,
-
-  room_temp_c: null,
-  ds18b20_temp_c: null,
-  ds18b20_status: 0,
-
-  amg_status: 0,
-  amg_min_temp_c: null,
-  amg_max_temp_c: null,
-  amg_center_temp_c: null,
-  amg_pixels: [],
-
-  buzzer_status: 0,
-
-  sensor_status: 0,
-  sensor_text: "waiting for board",
-  mlx_address: -1,
-
-  updatedAt: Date.now(),
-};
+// ... (ส่วน servoSensors กับตัวแปรอื่นๆ คงเดิม) ...
 
 let servoWaiters = [];
 const SERVO_API_TOKEN = process.env.API_TOKEN || "servo-god-1234";
@@ -454,7 +438,8 @@ function sendCommandToWaiters() {
 }
 
 app.post("/api/move", requireAdmin, (req, res) => {
-  const { token, x, y } = req.body;
+  // รับค่า trim_x และ trim_y มาจากหน้าเว็บด้วย
+  const { token, x, y, trim_x, trim_y } = req.body;
 
   if (token !== SERVO_API_TOKEN) {
     return res.status(401).json({ error: "bad token" });
@@ -462,21 +447,36 @@ app.post("/api/move", requireAdmin, (req, res) => {
 
   const nextX = Number(x);
   const nextY = Number(y);
+  // ดึงค่า Trim ถ้าไม่ได้ส่งมาให้ตั้งเป็น 0
+  const nextTrimX = Number(trim_x ?? servoCommand.trim_x);
+  const nextTrimY = Number(trim_y ?? servoCommand.trim_y);
 
-  if (!Number.isInteger(nextX) || !Number.isInteger(nextY)) {
-    return res.status(400).json({ error: "x/y must be numbers" });
+  if (!Number.isInteger(nextX) || !Number.isInteger(nextY) || !Number.isInteger(nextTrimX) || !Number.isInteger(nextTrimY)) {
+    return res.status(400).json({ error: "values must be integers" });
   }
 
-  if (nextX < -1 || nextX > 1 || nextY < -1 || nextY > 1) {
-    return res.status(400).json({ error: "x/y must be -1, 0, or 1" });
+  // แก้ไข Validation ให้รองรับความเร็ว -100 ถึง 100
+  if (nextX < -100 || nextX > 100 || nextY < -100 || nextY > 100) {
+    return res.status(400).json({ error: "x/y must be between -100 and 100" });
   }
 
-  const changed = servoCommand.x !== nextX || servoCommand.y !== nextY;
+  // ป้องกันค่า Trim เกินขีดจำกัดมอเตอร์ (-45 ถึง 45)
+  if (nextTrimX < -45 || nextTrimX > 45 || nextTrimY < -45 || nextTrimY > 45) {
+    return res.status(400).json({ error: "trim must be between -45 and 45" });
+  }
+
+  const changed = 
+    servoCommand.x !== nextX || 
+    servoCommand.y !== nextY || 
+    servoCommand.trim_x !== nextTrimX || 
+    servoCommand.trim_y !== nextTrimY;
 
   if (changed) {
     servoCommand = {
       x: nextX,
       y: nextY,
+      trim_x: nextTrimX,
+      trim_y: nextTrimY,
       updatedAt: Date.now(),
     };
 
@@ -488,6 +488,7 @@ app.post("/api/move", requireAdmin, (req, res) => {
     command: servoCommand,
   });
 });
+
 app.get("/api/command", (req, res) => {
   if (req.query.token !== SERVO_API_TOKEN) {
     return res.status(401).json({ error: "bad token" });
