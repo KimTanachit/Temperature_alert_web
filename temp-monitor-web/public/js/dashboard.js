@@ -198,39 +198,54 @@ async function initDashboard() {
   // SOCKET.IO REAL-TIME
   // ===================================================
 
-  if (typeof io === "function") {
+ if (typeof io === "function") {
 
-    socket = io();
+  console.log("[SOCKET] Socket.IO library loaded");
 
-    socket.on("connect", () => {
-      console.log("[SOCKET] connected");
-      setConnection(true);
-    });
+  socket = io(window.location.origin, {
+    transports: ["websocket", "polling"]
+  });
 
-    socket.on("disconnect", () => {
-      console.log("[SOCKET] disconnected");
-      setConnection(false);
-    });
+  socket.on("connect", () => {
+    console.log("[SOCKET] CONNECTED");
+    console.log("[SOCKET] ID:", socket.id);
 
-    // รับค่า Sensor ทุกครั้งที่ส่งมา
-    socket.on("temperature", data => {
+    setConnection(true);
+  });
 
-      console.log(
-        "[REAL-TIME]",
-        data.temperature,
-        data.timestamp
-      );
+  socket.on("connect_error", (error) => {
+    console.error("[SOCKET] CONNECTION ERROR:", error.message);
 
-      // อัปเดตตัวเลขปัจจุบัน
-      updateCurrent(data.temperature);
+    setConnection(false);
+  });
 
-      // ⭐ เพิ่มจุดใหม่ลงกราฟทันที
-      addRealtimePoint(
-        data.temperature,
-        data.timestamp
-      );
-    });
-  }
+  socket.on("disconnect", (reason) => {
+    console.log("[SOCKET] DISCONNECTED:", reason);
+
+    setConnection(false);
+  });
+
+  socket.on("temperature", (data) => {
+
+    console.log("================================");
+    console.log("[REAL-TIME] DATA RECEIVED");
+    console.log("Temperature:", data.temperature);
+    console.log("Timestamp:", data.timestamp);
+    console.log("================================");
+
+    updateCurrent(data.temperature);
+
+    addRealtimePoint(
+      data.temperature,
+      data.timestamp
+    );
+  });
+
+} else {
+
+  console.error("[SOCKET] Socket.IO library NOT loaded!");
+
+}
 }
 
 initDashboard();
