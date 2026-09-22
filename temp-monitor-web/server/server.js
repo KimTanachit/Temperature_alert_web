@@ -11,9 +11,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 const PORT = process.env.PORT || 3000;
 
-const ESP32_API_TOKEN =
-  process.env.ESP32_API_TOKEN ||
-  "SensorT22";
+const ESP32_API_TOKEN = process.env.ESP32_API_TOKEN ||"SensorT22";
 
 // รองรับ Reverse Proxy บน Render เพื่อให้ Cookie ทำงานได้ถูกต้อง
 app.set("trust proxy", 1);
@@ -281,52 +279,126 @@ async function processTemperature(temp) {
 // ไม่บันทึกลง Supabase
 // =====================================================
 app.post("/api/realtime", async (req, res) => {
+
   try {
-    const auth = req.headers.authorization || "";
 
-    if (auth !== `Bearer ${ESP32_API_TOKEN}`) {
+    // =================================================
+    // AUTH
+    // =================================================
+
+    const auth =
+      req.headers.authorization || "";
+
+    if (
+      auth !==
+      `Bearer ${ESP32_API_TOKEN}`
+    ) {
+
       return res.status(401).json({
-        error: "Invalid ESP32 API token"
+        ok: false,
+        error: "Invalid ESP32 API token",
       });
     }
 
-    const temperature = Number(req.body.temperature_c);
-    const deviceId = req.body.device_id || "ESP32_NODE_02";
 
-    if (!Number.isFinite(temperature)) {
+    // =================================================
+    // READ DATA
+    // =================================================
+
+    const temperature =
+      Number(
+        req.body.temperature_c
+      );
+
+    const deviceId =
+      req.body.device_id ||
+      "ESP32_NODE_02";
+
+
+    // =================================================
+    // VALIDATE
+    // =================================================
+
+    if (
+      !Number.isFinite(
+        temperature
+      )
+    ) {
+
       return res.status(400).json({
-        error: "temperature_c must be a number"
+        ok: false,
+        error:
+          "temperature_c must be a number",
       });
     }
 
-    // ประมวลผล realtime + LINE Alert + Socket.IO
-    await processTemperature(temperature);
 
-    // อัปเดตสถานะ device
-    const { error: deviceError } = await supabase
-      .from("device_status")
-      .update({
-        last_seen: new Date().toISOString(),
-        sensor_status: true,
-        wifi_status: true
-      })
-      .eq("id", 1);
+    // =================================================
+    // PROCESS REALTIME
+    // =================================================
+
+    await processTemperature(
+      temperature
+    );
+
+
+    // =================================================
+    // UPDATE DEVICE STATUS
+    // =================================================
+
+    const {
+      error: deviceError
+    } =
+      await supabase
+        .from("device_status")
+        .update({
+
+          last_seen:
+            lastSensorSeen.toISOString(),
+
+          sensor_status: true,
+
+          wifi_status: true,
+
+        })
+        .eq("id", 1);
+
 
     if (deviceError) {
+
       console.error(
         "[DB] device status error:",
         deviceError.message
       );
     }
 
+
+    // =================================================
+    // LOG
+    // =================================================
+
     console.log(
       `[REALTIME] ${deviceId}: ${temperature.toFixed(2)}°C`
     );
 
-    return res.json({
+
+    // =================================================
+    // RESPONSE
+    // =================================================
+
+    return res.status(200).json({
+
       ok: true,
-      device_id: deviceId,
-      temperature: temperature
+
+      device_id:
+        deviceId,
+
+      temperature_c:
+        temperature,
+
+      timestamp:
+        lastSensorSeen.toISOString(),
+
     });
 
   } catch (err) {
@@ -337,7 +409,12 @@ app.post("/api/realtime", async (req, res) => {
     );
 
     return res.status(500).json({
-      error: err.message
+
+      ok: false,
+
+      error:
+        err.message,
+
     });
   }
 });
@@ -709,17 +786,6 @@ app.post("/api/sensors", (req, res) => {
     ok: true,
     sensors: servoSensors,
   });
-  if (servoSensors.room_temp_c !== null) {
-    // อัปเดตตัวแปรส่วนกลางของเซิร์ฟเวอร์
-    currentTemperature = servoSensors.room_temp_c;
-    lastSensorSeen = new Date();
-
-    // กระจายข้อมูลให้ dashboard.js วาดกราฟและเปลี่ยนตัวเลขทันที
-    io.emit("temperature", {
-      temperature: currentTemperature,
-      timestamp: lastSensorSeen.toISOString(),
-    });
-  }
 });
 
 app.get("/api/sensors", (req, res) => {

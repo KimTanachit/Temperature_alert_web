@@ -1,251 +1,725 @@
 let socket = null;
 let chart = null;
+
 let lastAlertState = false;
 
-// จำนวนจุด Real-time ที่แสดงบนกราฟ
+let dangerThreshold = 100;
+let resetThreshold = 100;
+
 const MAX_REALTIME_POINTS = 50;
 
-// =====================================================
-// LOAD HISTORY FROM DATABASE
-// =====================================================
-
-async function loadDashboardHistory() {
-  try {
-    const rows = await getJSON(`${API.history}?minutes=60`);
-
-    updateDashboardChart(rows);
-
-    setConnection(true);
-  } catch (e) {
-    console.error(e);
-    setConnection(false);
-  }
-}
 
 // =====================================================
-// CREATE / UPDATE CHART
+// FORMAT TIME
 // =====================================================
 
-function updateDashboardChart(rows) {
-  // เอาเฉพาะ 50 จุดล่าสุด
-  rows = rows.slice(-50);
+function formatTime(timestamp) {
 
-  const labels = rows.map(r =>
-    new Date(r.recorded_at).toLocaleTimeString("th-TH", {
+  return new Date(timestamp).toLocaleTimeString(
+    "th-TH",
+    {
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit"
-    })
-  );
-
-  const values = rows.map(r => Number(r.temperature));
-
-  const canvas = document.getElementById("tempChart");
-  if (!canvas) return;
-
-  if (chart) chart.destroy();
-
-  chart = new Chart(canvas, {
-    type: "line",
-
-    data: {
-      labels,
-      datasets: [{
-        label: "อุณหภูมิ (°C)",
-        data: values,
-        borderWidth: 2,
-        tension: 0.35,
-        fill: true,
-        pointRadius: 2,
-        pointHoverRadius: 5
-      }]
-    },
-
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-
-      animation: {
-        duration: 300
-      },
-
-      scales: {
-        y: {
-          suggestedMin: 0,
-          suggestedMax: 120
-        }
-      }
     }
-  });
+  );
 }
 
+
 // =====================================================
-// REAL-TIME ADD POINT
+// CONNECTION STATUS
 // =====================================================
 
-function addRealtimePoint(temp, timestamp) {
+function setConnection(online) {
+
+  const badge =
+    document.getElementById(
+      "connectionBadge"
+    );
+
+  const device =
+    document.getElementById(
+      "deviceStatus"
+    );
+
+  if (!badge) return;
+
+  if (online) {
+
+    badge.textContent =
+      "ออนไลน์";
+
+    badge.classList.remove(
+      "offline"
+    );
+
+    badge.classList.add(
+      "online"
+    );
+
+    if (device) {
+
+      device.textContent =
+        "ออนไลน์";
+    }
+
+  } else {
+
+    badge.textContent =
+      "ออฟไลน์";
+
+    badge.classList.remove(
+      "online"
+    );
+
+    badge.classList.add(
+      "offline"
+    );
+
+    if (device) {
+
+      device.textContent =
+        "ออฟไลน์";
+    }
+  }
+}
+
+
+// =====================================================
+// LOAD SETTINGS
+// =====================================================
+
+async function loadTemperatureSettings() {
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/settings"
+      );
+
+    if (!response.ok) {
+
+      throw new Error(
+        "โหลด Settings ไม่สำเร็จ"
+      );
+    }
+
+    const data =
+      await response.json();
+
+    dangerThreshold =
+      Number(
+        data.danger_threshold ?? 100
+      );
+
+    resetThreshold =
+      Number(
+        data.reset_threshold ??
+        dangerThreshold
+      );
+
+    updateThresholdDisplay();
+
+  } catch (error) {
+
+    console.error(
+      "[SETTINGS]",
+      error
+    );
+  }
+}
+
+
+// =====================================================
+// UPDATE THRESHOLD
+// =====================================================
+
+function updateThresholdDisplay() {
+
+  const elements =
+    document.querySelectorAll(
+      "[data-danger-threshold]"
+    );
+
+  elements.forEach(
+    (element) => {
+
+      element.textContent =
+        `${dangerThreshold}°C`;
+    }
+  );
+}
+
+
+// =====================================================
+// LOAD HISTORY
+// =====================================================
+
+async function loadDashboardHistory() {
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/temperature/history?minutes=60"
+      );
+
+    if (!response.ok) {
+
+      throw new Error(
+        "โหลด History ไม่สำเร็จ"
+      );
+    }
+
+    const rows =
+      await response.json();
+
+    updateDashboardChart(
+      rows
+    );
+
+  } catch (error) {
+
+    console.error(
+      "[HISTORY]",
+      error
+    );
+  }
+}
+
+
+// =====================================================
+// CREATE CHART
+// =====================================================
+
+function updateDashboardChart(
+  rows
+) {
+
+  rows =
+    Array.isArray(rows)
+      ? rows.slice(
+          -MAX_REALTIME_POINTS
+        )
+      : [];
+
+  const labels =
+    rows.map(
+      (row) =>
+        formatTime(
+          row.recorded_at
+        )
+    );
+
+  const values =
+    rows.map(
+      (row) =>
+        Number(
+          row.temperature
+        )
+    );
+
+  const canvas =
+    document.getElementById(
+      "tempChart"
+    );
+
+  if (!canvas) return;
+
+  if (chart) {
+
+    chart.destroy();
+  }
+
+  chart =
+    new Chart(
+      canvas,
+      {
+        type: "line",
+
+        data: {
+
+          labels,
+
+          datasets: [
+            {
+              label:
+                "อุณหภูมิ (°C)",
+
+              data: values,
+
+              borderWidth: 2,
+
+              tension: 0.35,
+
+              fill: true,
+
+              pointRadius: 2,
+
+              pointHoverRadius: 5
+            }
+          ]
+        },
+
+        options: {
+
+          responsive: true,
+
+          maintainAspectRatio: false,
+
+          animation: {
+            duration: 250
+          },
+
+          scales: {
+
+            y: {
+
+              suggestedMin: 0,
+
+              suggestedMax: 120
+            }
+          }
+        }
+      }
+    );
+}
+
+
+// =====================================================
+// ADD REALTIME POINT
+// =====================================================
+
+function addRealtimePoint(
+  temp,
+  timestamp
+) {
+
   if (!chart) return;
 
-  const label = new Date(timestamp).toLocaleTimeString("th-TH", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit"
-  });
+  const label =
+    formatTime(
+      timestamp
+    );
 
-  const value = Number(temp);
+  const value =
+    Number(temp);
 
-  chart.data.labels.push(label);
-  chart.data.datasets[0].data.push(value);
+  chart.data.labels.push(
+    label
+  );
 
-  // เกิน 50 จุด → เอาจุดเก่าที่สุดออก
-  while (chart.data.labels.length > 50) {
+  chart.data.datasets[0].data.push(
+    value
+  );
+
+  while (
+    chart.data.labels.length >
+    MAX_REALTIME_POINTS
+  ) {
+
     chart.data.labels.shift();
+
     chart.data.datasets[0].data.shift();
   }
 
-  chart.update("none");
+  chart.update(
+    "none"
+  );
 }
+
 
 // =====================================================
 // CURRENT TEMPERATURE
 // =====================================================
 
-function updateCurrent(temp) {
-  document.getElementById("currentTemp").textContent =
-    `${Number(temp).toFixed(1)} °C`;
+function updateCurrent(
+  temp
+) {
 
-  const danger = Number(temp) > 100;
+  temp =
+    Number(temp);
 
-  document.getElementById("riskLevel").textContent =
-    danger ? "อันตราย" : "ปกติ";
+  if (
+    !Number.isFinite(temp)
+  ) {
 
-  document.getElementById("tempStatus").textContent =
-    danger ? "เกิน 100°C" : "อยู่ในเกณฑ์ปกติ";
-
-  document.getElementById("deviceStatus").textContent =
-    "ออนไลน์";
-
-  if (danger && !lastAlertState) {
-    showAlert(temp);
+    return;
   }
 
-  lastAlertState = danger;
+  const currentTemp =
+    document.getElementById(
+      "currentTemp"
+    );
+
+  const riskLevel =
+    document.getElementById(
+      "riskLevel"
+    );
+
+  const tempStatus =
+    document.getElementById(
+      "tempStatus"
+    );
+
+  if (currentTemp) {
+
+    currentTemp.textContent =
+      `${temp.toFixed(1)} °C`;
+  }
+
+  const danger =
+    temp >
+    dangerThreshold;
+
+  if (riskLevel) {
+
+    riskLevel.textContent =
+      danger
+        ? "อันตราย"
+        : "ปกติ";
+  }
+
+  if (tempStatus) {
+
+    tempStatus.textContent =
+      danger
+        ? `เกิน ${dangerThreshold}°C`
+        : "อยู่ในเกณฑ์ปกติ";
+  }
+
+  if (
+    danger &&
+    !lastAlertState
+  ) {
+
+    showAlert(
+      temp
+    );
+  }
+
+  lastAlertState =
+    danger;
 }
 
+
 // =====================================================
-// POPUP ALERT
+// ALERT POPUP
 // =====================================================
 
-function showAlert(temp) {
-  document.getElementById("alertTemp").textContent =
-    `${Number(temp).toFixed(1)} °C`;
+function showAlert(
+  temp
+) {
 
-  document
-    .getElementById("alertOverlay")
-    .classList.remove("hidden");
+  const alertTemp =
+    document.getElementById(
+      "alertTemp"
+    );
+
+  const overlay =
+    document.getElementById(
+      "alertOverlay"
+    );
+
+  if (alertTemp) {
+
+    alertTemp.textContent =
+      `${Number(temp).toFixed(1)} °C`;
+  }
+
+  if (overlay) {
+
+    overlay.classList.remove(
+      "hidden"
+    );
+  }
 
   if (
     "Notification" in window &&
-    Notification.permission === "granted"
+    Notification.permission ===
+      "granted"
   ) {
-    new Notification("🔥 แจ้งเตือนอุณหภูมิสูง", {
-      body: `ตรวจพบ ${Number(temp).toFixed(1)}°C`
-    });
+
+    new Notification(
+      "🔥 แจ้งเตือนอุณหภูมิสูง",
+      {
+        body:
+          `ตรวจพบ ${Number(temp).toFixed(1)}°C`
+      }
+    );
   }
 }
+
 
 // =====================================================
 // CLOSE ALERT
 // =====================================================
 
 document
-  .getElementById("closeAlert")
-  ?.addEventListener("click", () => {
-    document
-      .getElementById("alertOverlay")
-      .classList.add("hidden");
-  });
+  .getElementById(
+    "closeAlert"
+  )
+  ?.addEventListener(
+    "click",
+    () => {
+
+      document
+        .getElementById(
+          "alertOverlay"
+        )
+        ?.classList.add(
+          "hidden"
+        );
+    }
+  );
+
 
 // =====================================================
-// REFRESH BUTTON
+// REFRESH
 // =====================================================
 
 document
-  .getElementById("refreshBtn")
-  ?.addEventListener("click", loadDashboardHistory);
+  .getElementById(
+    "refreshBtn"
+  )
+  ?.addEventListener(
+    "click",
+    async () => {
+
+      await loadTemperatureSettings();
+
+      await loadDashboardHistory();
+    }
+  );
+
 
 // =====================================================
-// INITIALIZE DASHBOARD
+// LOAD CURRENT
+// =====================================================
+
+async function loadCurrentTemperature() {
+
+  try {
+
+    const response =
+      await fetch(
+        "/api/temperature/current"
+      );
+
+    if (!response.ok) {
+
+      throw new Error(
+        "โหลด Current Temperature ไม่สำเร็จ"
+      );
+    }
+
+    const data =
+      await response.json();
+
+    if (
+      data.temperature !== null &&
+      data.temperature !== undefined
+    ) {
+
+      updateCurrent(
+        data.temperature
+      );
+    }
+
+  } catch (error) {
+
+    console.error(
+      "[CURRENT]",
+      error
+    );
+  }
+}
+
+
+// =====================================================
+// SOCKET.IO
+// =====================================================
+
+function initSocket() {
+
+  if (
+    typeof io !==
+    "function"
+  ) {
+
+    console.error(
+      "[SOCKET] Socket.IO ไม่ถูกโหลด"
+    );
+
+    setConnection(false);
+
+    return;
+  }
+
+  console.log(
+    "[SOCKET] กำลังเชื่อมต่อ..."
+  );
+
+  socket =
+    io(
+      window.location.origin,
+      {
+        transports: [
+          "websocket",
+          "polling"
+        ]
+      }
+    );
+
+
+  // ===================================================
+  // CONNECT
+  // ===================================================
+
+  socket.on(
+    "connect",
+    () => {
+
+      console.log(
+        "[SOCKET] CONNECTED"
+      );
+
+      console.log(
+        "[SOCKET] ID:",
+        socket.id
+      );
+
+      setConnection(true);
+    }
+  );
+
+
+  // ===================================================
+  // REALTIME TEMPERATURE
+  // ===================================================
+
+  socket.on(
+    "temperature",
+    (data) => {
+
+      console.log(
+        "[REALTIME] DATA:",
+        data
+      );
+
+      if (
+        !data ||
+        data.temperature ===
+          undefined
+      ) {
+
+        return;
+      }
+
+      updateCurrent(
+        data.temperature
+      );
+
+      addRealtimePoint(
+        data.temperature,
+        data.timestamp ||
+          new Date().toISOString()
+      );
+    }
+  );
+
+
+  // ===================================================
+  // ALERT
+  // ===================================================
+
+  socket.on(
+    "alert",
+    (data) => {
+
+      console.log(
+        "[ALERT EVENT]",
+        data
+      );
+
+      if (
+        data &&
+        data.temperature !==
+          undefined
+      ) {
+
+        showAlert(
+          data.temperature
+        );
+      }
+    }
+  );
+
+
+  // ===================================================
+  // CONNECT ERROR
+  // ===================================================
+
+  socket.on(
+    "connect_error",
+    (error) => {
+
+      console.error(
+        "[SOCKET] CONNECTION ERROR:",
+        error.message
+      );
+
+      setConnection(false);
+    }
+  );
+
+
+  // ===================================================
+  // DISCONNECT
+  // ===================================================
+
+  socket.on(
+    "disconnect",
+    (reason) => {
+
+      console.log(
+        "[SOCKET] DISCONNECTED:",
+        reason
+      );
+
+      setConnection(false);
+    }
+  );
+}
+
+
+// =====================================================
+// INITIALIZE
 // =====================================================
 
 async function initDashboard() {
 
-  // โหลดข้อมูลย้อนหลังจาก Database ครั้งแรก
+  console.log(
+    "[DASHBOARD] Starting..."
+  );
+
+  // 1. โหลดเกณฑ์
+  await loadTemperatureSettings();
+
+  // 2. โหลด History
   await loadDashboardHistory();
 
-  // โหลดค่าปัจจุบัน
-  try {
-    const current = await getJSON(API.current);
+  // 3. โหลดค่าปัจจุบัน
+  await loadCurrentTemperature();
 
-    if (current.temperature != null) {
-      updateCurrent(current.temperature);
-    }
-  } catch (e) {
-    console.error(e);
-  }
+  // 4. เปิด Realtime
+  initSocket();
 
-  // ===================================================
-  // SOCKET.IO REAL-TIME
-  // ===================================================
-
- if (typeof io === "function") {
-
-  console.log("[SOCKET] Socket.IO library loaded");
-
-  socket = io(window.location.origin, {
-    transports: ["websocket", "polling"]
-  });
-
-  socket.on("connect", () => {
-    console.log("[SOCKET] CONNECTED");
-    console.log("[SOCKET] ID:", socket.id);
-
-    setConnection(true);
-  });
-
-  socket.on("connect_error", (error) => {
-    console.error("[SOCKET] CONNECTION ERROR:", error.message);
-
-    setConnection(false);
-  });
-
-  socket.on("disconnect", (reason) => {
-    console.log("[SOCKET] DISCONNECTED:", reason);
-
-    setConnection(false);
-  });
-
-  socket.on("temperature", (data) => {
-
-    console.log("================================");
-    console.log("[REAL-TIME] DATA RECEIVED");
-    console.log("Temperature:", data.temperature);
-    console.log("Timestamp:", data.timestamp);
-    console.log("================================");
-
-    updateCurrent(data.temperature);
-
-    addRealtimePoint(
-      data.temperature,
-      data.timestamp
-    );
-  });
-
-} else {
-
-  console.error("[SOCKET] Socket.IO library NOT loaded!");
-
+  console.log(
+    "[DASHBOARD] Ready"
+  );
 }
-}
+
 
 initDashboard();
