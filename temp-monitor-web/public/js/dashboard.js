@@ -11,26 +11,41 @@ const MAX_REALTIME_POINTS = 50;
 // ฟังก์ชันอัปเดตระดับความเสี่ยงตามอุณหภูมิ
 function updateRiskLevel(temp) {
   const riskLevelEl = document.getElementById("riskLevel");
-  
   if (!riskLevelEl) return;
 
-  if (temp <= 38) {
+  // หาการ์ด (กล่อง .stat-card) ที่ครอบ id="riskLevel" นี้อยู่
+  const cardEl = riskLevelEl.closest('.stat-card');
+  if (!cardEl) return;
+
+  // ดึงข้อความอธิบาย (span, small) ภายในการ์ดมาด้วย เพื่อปรับสีตัวหนังสือให้อ่านง่าย
+  const subTexts = cardEl.querySelectorAll('span, small');
+
+  // ลบกรอบที่เคยตั้งไว้ที่ตัวหนังสือบรรทัดเดียวออก
+  riskLevelEl.style.backgroundColor = "transparent";
+  riskLevelEl.style.padding = "0";
+  riskLevelEl.style.display = "block"; // คืนค่าการแสดงผลปกติ
+
+  // เริ่มเช็คอุณหภูมิและเปลี่ยนสี **ที่การ์ด**
+  if (temp <= 35) {
     riskLevelEl.textContent = "ปกติ";
+    cardEl.style.backgroundColor = "#f8fcff"; // สีพื้นหลังการ์ดตอนปกติ (ดึงมาจาก CSS เดิมของคุณ)
     riskLevelEl.style.color = "black"; 
-    riskLevelEl.style.backgroundColor = "transparent"; // ลบสีพื้นหลังออก
-    riskLevelEl.style.padding = "0"; // เอาขอบออกเมื่อเป็นสถานะปกติ
-  } else if (temp > 38 && temp <= 50) {
+    subTexts.forEach(el => el.style.color = ""); // คืนค่าสีเทาเดิม
+  } else if (temp > 35 && temp <= 45) {
     riskLevelEl.textContent = "สูงกว่าปกติ";
+    cardEl.style.backgroundColor = "#FFD700"; // การ์ดสีเหลือง
     riskLevelEl.style.color = "black"; 
-    riskLevelEl.style.backgroundColor = "#FFD700"; // แก้คำที่พิมพ์ผิดตรงนี้แล้ว (สีเหลือง)
-  } else if (temp > 50 && temp <= 80) {
+    subTexts.forEach(el => el.style.color = "black"); 
+  } else if (temp > 45 && temp <= 59) {
     riskLevelEl.textContent = "อุณหภูมิสูง มีความเสี่ยงไฟไหม้";
+    cardEl.style.backgroundColor = "#FFA500"; // การ์ดสีส้ม
     riskLevelEl.style.color = "black"; 
-    riskLevelEl.style.backgroundColor = "#FFA500"; // สีส้ม
-  } else if (temp > 80) {
+    subTexts.forEach(el => el.style.color = "black"); 
+  } else if (temp >= 60) {
     riskLevelEl.textContent = "อันตราย ออกจากพื้นที่";
-    riskLevelEl.style.color = "white"; 
-    riskLevelEl.style.backgroundColor = "#FF0000"; // สีแดง
+    cardEl.style.backgroundColor = "#FF0000"; // การ์ดสีแดง
+    riskLevelEl.style.color = "white"; // เปลี่ยนตัวอักษรหลักเป็นสีขาว
+    subTexts.forEach(el => el.style.color = "white"); // เปลี่ยนข้อความเล็กๆ เป็นสีขาวด้วยเพื่อให้อ่านง่ายบนพื้นแดง
   }
 }
 
