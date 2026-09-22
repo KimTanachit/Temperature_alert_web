@@ -550,6 +550,13 @@ app.post("/api/sensors", (req, res) => {
     updatedAt: Date.now(),
   };
 
+ if (servoSensors.room_temp_c !== null) {
+    // ลบ await ออก ปล่อยให้อัปเดตกราฟและ DB ทำงานเบื้องหลัง
+    processTemperature(servoSensors.room_temp_c).catch(err => {
+        console.error("[Dashboard Update Error]:", err.message);
+    });
+}
+
   res.json({
     ok: true,
     sensors: servoSensors,
