@@ -10,30 +10,63 @@
     <link rel="stylesheet" href="css/style.css">
 
     <style>
-        .servo-page { max-width: 760px; }
-        .servo-card {
+        .servo-thermal-layout {
+            display: grid;
+            grid-template-columns: minmax(520px, 1fr) 380px;
+            gap: 24px;
+            align-items: start;
+            max-width: 1220px;
+        }
+
+        .servo-card,
+        .thermal-card {
             background: #ffffff;
             border-radius: 12px;
             padding: 24px;
             box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
         }
-        .servo-card h1 { margin: 0 0 8px; font-size: 26px; }
-        .servo-card p { margin: 0 0 20px; color: #667085; }
-        
+
+        .servo-card h1,
+        .thermal-card h2 {
+            margin: 0 0 8px;
+            font-size: 26px;
+        }
+
+        .thermal-card h2 {
+            font-size: 22px;
+        }
+
+        .servo-card p,
+        .thermal-card p {
+            margin: 0 0 20px;
+            color: #667085;
+        }
+
         .sensor-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 12px;
             margin-bottom: 24px;
         }
+
         .sensor-box {
             border: 1px solid #e4e7ec;
             border-radius: 10px;
             padding: 14px;
             background: #f9fafb;
         }
-        .sensor-label { font-size: 13px; color: #667085; margin-bottom: 6px; }
-        .sensor-value { font-size: 22px; font-weight: 700; color: #101828; }
+
+        .sensor-label {
+            font-size: 13px;
+            color: #667085;
+            margin-bottom: 6px;
+        }
+
+        .sensor-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #101828;
+        }
 
         .control-pad {
             display: grid;
@@ -44,29 +77,39 @@
             align-items: center;
             margin-top: 8px;
         }
+
         .control-pad button {
-            width: 90px; height: 90px;
-            border: none; border-radius: 12px;
-            background: #ff6b35; color: #ffffff;
-            font-size: 32px; font-weight: 700;
+            width: 90px;
+            height: 90px;
+            border: none;
+            border-radius: 12px;
+            background: #ff6b35;
+            color: #ffffff;
+            font-size: 32px;
+            font-weight: 700;
             cursor: pointer;
             box-shadow: 0 5px 0 #b8421f;
-            user-select: none; /* ป้องกันการคลุมดำข้อความเวลาแตะค้าง */
-            touch-action: manipulation; /* ลดความหน่วงจากการซูมในมือถือ */
+            user-select: none;
+            touch-action: manipulation;
         }
+
         .control-pad button:active,
         .control-pad button.pressed {
             transform: translateY(4px);
             box-shadow: 0 1px 0 #b8421f;
         }
+
         .control-pad .stop {
             background: #d92d20;
             box-shadow: 0 5px 0 #8f1d14;
             font-size: 20px;
         }
-        .pad-empty { width: 90px; height: 90px; }
 
-        /* ส่วนตั้งค่าที่เพิ่มเข้ามาใหม่ */
+        .pad-empty {
+            width: 90px;
+            height: 90px;
+        }
+
         .settings-pad {
             margin-top: 24px;
             background: #f9fafb;
@@ -74,12 +117,15 @@
             border-radius: 10px;
             border: 1px solid #e4e7ec;
         }
+
         .settings-pad .setting-group {
             margin-bottom: 16px;
         }
+
         .settings-pad .setting-group:last-child {
             margin-bottom: 0;
         }
+
         .settings-pad label {
             display: flex;
             justify-content: space-between;
@@ -88,38 +134,112 @@
             color: #344054;
             margin-bottom: 8px;
         }
+
         .settings-pad input[type="range"] {
             width: 100%;
             accent-color: #ff6b35;
         }
 
         .servo-status {
-            margin-top: 18px; text-align: center; color: #667085; min-height: 22px;
+            margin-top: 18px;
+            text-align: center;
+            color: #667085;
+            min-height: 22px;
+        }
+
+        .thermal-canvas-wrap {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background: #111827;
+            border-radius: 14px;
+            padding: 10px;
+            box-shadow: inset 0 0 0 1px rgba(255,255,255,0.08);
+        }
+
+        #thermalCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            border-radius: 10px;
+            image-rendering: pixelated;
+            background: #0b1220;
+        }
+
+        .thermal-info {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .thermal-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 12px;
+            border: 1px solid #e4e7ec;
+            border-radius: 10px;
+            background: #f9fafb;
+            color: #344054;
+        }
+
+        .thermal-row b {
+            color: #101828;
+        }
+
+        .thermal-status {
+            margin-top: 14px;
+            padding: 12px;
+            border-radius: 10px;
+            background: #eef6ff;
+            color: #1849a9;
+            font-weight: 700;
+            text-align: center;
+        }
+
+        .thermal-status.offline {
+            background: #fff1f0;
+            color: #b42318;
+        }
+
+        @media (max-width: 1100px) {
+            .servo-thermal-layout {
+                grid-template-columns: 1fr;
+                max-width: 760px;
+            }
         }
 
         @media (max-width: 640px) {
-            .sensor-grid { grid-template-columns: 1fr; }
+            .sensor-grid {
+                grid-template-columns: 1fr;
+            }
+
             .control-pad {
                 grid-template-columns: 76px 76px 76px;
                 grid-template-rows: 76px 76px 76px;
             }
-            .control-pad button, .pad-empty { width: 76px; height: 76px; }
+
+            .control-pad button,
+            .pad-empty {
+                width: 76px;
+                height: 76px;
+            }
         }
     </style>
 </head>
 
 <body>
 
-  <header class="topbar">
-    <button class="menu-btn" id="menuBtn">☰</button>
-    <div class="top-title">ระบบแจ้งเตือนอุณหภูมิ</div>
-    
-    <a href="/login.html" class="top-user" id="userArea" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; cursor: pointer;">
-      <span>🔔 &nbsp; </span>
-      <span id="userStatusText">ผู้ใช้งานทั่วไป</span>
-      <span> &nbsp; 👤</span>
-    </a>
-  </header>
+    <header class="topbar">
+        <button class="menu-btn" id="menuBtn">☰</button>
+        <div class="top-title">ระบบแจ้งเตือนอุณหภูมิ</div>
+
+        <a href="/login.html" class="top-user" id="userArea" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; cursor: pointer;">
+            <span>🔔 &nbsp; </span>
+            <span id="userStatusText">ผู้ใช้งานทั่วไป</span>
+            <span> &nbsp; 👤</span>
+        </a>
+    </header>
 
     <aside class="sidebar" id="sidebar">
         <div class="brand">
@@ -139,7 +259,7 @@
     </aside>
 
     <main class="content">
-        <section class="servo-page">
+        <section class="servo-thermal-layout">
             <div class="servo-card">
                 <h1>Servo Control</h1>
                 <p>ควบคุมกล้องและอ่านค่าระยะ/อุณหภูมิผ่านระบบ cloud</p>
@@ -150,7 +270,7 @@
                         <div class="sensor-value"><span id="distanceValue">--</span> mm</div>
                     </div>
                     <div class="sensor-box">
-                        <div class="sensor-label">อุณหภูมิเป้าหมาย</div>
+                        <div class="sensor-label">อุณหภูมิห้อง</div>
                         <div class="sensor-value"><span id="objectTempValue">--</span> °C</div>
                     </div>
                     <div class="sensor-box">
@@ -173,7 +293,6 @@
                     <div class="pad-empty"></div>
                 </div>
 
-                <!-- ส่วนตั้งค่าความเร็วและการจูนที่เพิ่มเข้ามาใหม่ -->
                 <div class="settings-pad">
                     <div class="setting-group">
                         <label>ความเร็ว (Speed) <span id="speedDisplay">100%</span></label>
@@ -191,6 +310,32 @@
 
                 <div class="servo-status" id="servoStatus">พร้อมใช้งาน</div>
             </div>
+
+            <div class="thermal-card">
+                <h2>Thermal Camera</h2>
+                <p>ภาพความร้อน AMG8833 IR 8x8</p>
+
+                <div class="thermal-canvas-wrap">
+                    <canvas id="thermalCanvas" width="320" height="320"></canvas>
+                </div>
+
+                <div class="thermal-info">
+                    <div class="thermal-row">
+                        <span>Min</span>
+                        <b id="amgMin">-- °C</b>
+                    </div>
+                    <div class="thermal-row">
+                        <span>Max</span>
+                        <b id="amgMax">-- °C</b>
+                    </div>
+                    <div class="thermal-row">
+                        <span>Center</span>
+                        <b id="amgCenter">-- °C</b>
+                    </div>
+                </div>
+
+                <div class="thermal-status offline" id="thermalStatus">Waiting for AMG8833</div>
+            </div>
         </section>
     </main>
 
@@ -203,32 +348,30 @@
         const distanceEl = document.getElementById("distanceValue");
         const objectTempEl = document.getElementById("objectTempValue");
         const sensorStatusEl = document.getElementById("sensorStatusValue");
+        const thermalStatusEl = document.getElementById("thermalStatus");
 
-        // อัปเดต UI ของ Sliders
         const sliderSpeed = document.getElementById("sliderSpeed");
         const sliderTrimX = document.getElementById("sliderTrimX");
         const sliderTrimY = document.getElementById("sliderTrimY");
-        
+
         sliderSpeed.addEventListener("input", (e) => document.getElementById("speedDisplay").textContent = e.target.value + "%");
         sliderTrimX.addEventListener("input", (e) => document.getElementById("trimXDisplay").textContent = e.target.value);
         sliderTrimY.addEventListener("input", (e) => document.getElementById("trimYDisplay").textContent = e.target.value);
 
         let activeButton = null;
         let heartbeat = null;
-        let activeRequest = null; // จัดการ Fetch Abort
+        let activeRequest = null;
         let lastX = 0;
         let lastY = 0;
 
         async function moveCamera(dirX, dirY) {
-            // คำนวณความเร็ว (หาก dir=0 ผลลัพธ์จะเป็น 0 ทันที)
             const speed = parseInt(sliderSpeed.value);
-            lastX = dirX * speed; 
+            lastX = dirX * speed;
             lastY = dirY * speed;
 
             const trimX = parseInt(sliderTrimX.value);
             const trimY = parseInt(sliderTrimY.value);
 
-            // ยกเลิก Request ที่ค้างอยู่ (ช่วยให้คำสั่ง Stop ตอบสนองทันทีโดยไม่ต้องรอ Request ก่อนหน้าทำงานเสร็จ)
             if (activeRequest) {
                 activeRequest.abort();
             }
@@ -243,9 +386,9 @@
                     signal: activeRequest.signal,
                     body: JSON.stringify({
                         token: API_TOKEN,
-                        x: lastX,       // ส่งค่า -100 ถึง 100 แทนที่จะเป็นแค่ -1, 0, 1
+                        x: lastX,
                         y: lastY,
-                        trim_x: trimX,  // ส่งค่าชดเชยจุดศูนย์กลางให้ Backend
+                        trim_x: trimX,
                         trim_y: trimY
                     })
                 });
@@ -257,7 +400,7 @@
 
                 statusEl.textContent = (dirX === 0 && dirY === 0) ? "หยุดแล้ว" : `กำลังหมุน (X:${lastX}, Y:${lastY})`;
             } catch (err) {
-                if (err.name !== 'AbortError') {
+                if (err.name !== "AbortError") {
                     statusEl.textContent = "เชื่อมต่อ server ไม่ได้";
                 }
             }
@@ -293,10 +436,9 @@
                     clearInterval(heartbeat);
                 }
 
-                // ส่งคำสั่งย้ำเพื่อป้องกัน Timeout (ปรับรอบให้สมดุลขึ้น)
                 heartbeat = setInterval(function () {
                     moveCamera(dirX, dirY);
-                }, 250); 
+                }, 250);
             });
 
             button.addEventListener("pointerup", stopCamera);
@@ -310,14 +452,82 @@
                 const data = await res.json();
 
                 distanceEl.textContent = data.distance_mm >= 0 ? data.distance_mm : "--";
-                objectTempEl.textContent = data.object_temp_c === null || data.object_temp_c === undefined
+
+                objectTempEl.textContent = data.room_temp_c === null || data.room_temp_c === undefined
                     ? "--"
-                    : Number(data.object_temp_c).toFixed(2);
+                    : Number(data.room_temp_c).toFixed(2);
 
                 sensorStatusEl.textContent = data.sensor_text || "--";
+
+                drawThermal(data);
             } catch (err) {
                 sensorStatusEl.textContent = "offline";
+                drawThermal(null);
             }
+        }
+
+        function tempToColor(value, min, max) {
+            const range = Math.max(max - min, 0.01);
+            const t = Math.max(0, Math.min(1, (value - min) / range));
+
+            const r = Math.round(255 * t);
+            const g = Math.round(120 * (1 - Math.abs(t - 0.5) * 2));
+            const b = Math.round(255 * (1 - t));
+
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        function setTempText(id, value) {
+            document.getElementById(id).textContent =
+                value === null || value === undefined
+                    ? "-- °C"
+                    : `${Number(value).toFixed(1)} °C`;
+        }
+
+        function drawThermal(data) {
+            const canvas = document.getElementById("thermalCanvas");
+            const ctx = canvas.getContext("2d");
+
+            if (!data) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                setTempText("amgMin", null);
+                setTempText("amgMax", null);
+                setTempText("amgCenter", null);
+                thermalStatusEl.textContent = "Thermal offline";
+                thermalStatusEl.classList.add("offline");
+                return;
+            }
+
+            setTempText("amgMin", data.amg_min_temp_c);
+            setTempText("amgMax", data.amg_max_temp_c);
+            setTempText("amgCenter", data.amg_center_temp_c);
+
+            const pixels = data.amg_pixels || [];
+
+            if (!Array.isArray(pixels) || pixels.length !== 64) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                thermalStatusEl.textContent = Number(data.amg_status) === 1 ? "AMG8833 online, waiting pixels" : "AMG8833 offline";
+                thermalStatusEl.classList.toggle("offline", Number(data.amg_status) !== 1);
+                return;
+            }
+
+            const min = Math.min(...pixels);
+            const max = Math.max(...pixels);
+            const cell = canvas.width / 8;
+
+            for (let row = 0; row < 8; row++) {
+                for (let col = 0; col < 8; col++) {
+                    const temp = Number(pixels[row * 8 + col]);
+                    ctx.fillStyle = tempToColor(temp, min, max);
+                    ctx.fillRect(col * cell, row * cell, cell, cell);
+
+                    ctx.strokeStyle = "rgba(255,255,255,0.22)";
+                    ctx.strokeRect(col * cell, row * cell, cell, cell);
+                }
+            }
+
+            thermalStatusEl.textContent = `AMG8833 online (${min.toFixed(1)} - ${max.toFixed(1)} °C)`;
+            thermalStatusEl.classList.remove("offline");
         }
 
         bindHoldButton("btnUp", 0, 1);
@@ -332,7 +542,7 @@
         });
 
         readSensors();
-        setInterval(readSensors, 2000);
+        setInterval(readSensors, 1000);
     </script>
 </body>
 </html>
