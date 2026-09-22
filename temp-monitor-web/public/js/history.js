@@ -1,5 +1,4 @@
 let allRows = [];
-let dangerThreshold = 100; // ค่าเริ่มต้นก่อนโหลด API
 
 // ฟังก์ชันจัดรูปแบบเวลา
 function formatDate(timestamp) {
@@ -14,79 +13,54 @@ function formatDate(timestamp) {
   });
 }
 
-// 1. ฟังก์ชันดึงค่าการตั้งค่า (เอาเกณฑ์อันตรายมาใช้)
-async function loadSettings() {
-  try {
-    const response = await fetch("/api/settings");
-    if (response.ok) {
-      const data = await response.json();
-      dangerThreshold = Number(data.danger_threshold ?? 100);
-    }
-  } catch (e) {
-    console.error("Load Settings Error:", e);
-  }
-}
-
-// 2. ฟังก์ชันดึงประวัติจากฐานข้อมูล
+// ฟังก์ชันดึงประวัติจากตาราง alerts
 async function loadHistory() {
   try {
-    const response = await fetch("/api/temperature/history?minutes=43200");
+    // ⚠️ เปลี่ยน URL ตรงนี้ให้ตรงกับ API ที่ดึงข้อมูลจากตาราง alerts ของคุณ
+    // เช่น "/api/alerts" หรือ "/api/history/alerts"
+    const response = await fetch("/api/alerts"); 
+    
     if (!response.ok) throw new Error("โหลดข้อมูลไม่สำเร็จ");
     
     const data = await response.json();
     
-    // เรียงข้อมูลจากเวลาล่าสุด (ใหม่สุด) ลงไปหาเก่าสุด
-    allRows = data.sort((a, b) => new Date(b.recorded_at) - new Date(a.recorded_at));
+    // เรียงข้อมูลจากเวลาล่าสุด (ใหม่สุด) ลงไปหาเก่าสุด (ใช้ created_at ตาม DB)
+    allRows = data.sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
     
     render();
   } catch(e) { 
     console.error("Load History Error:", e); 
-    document.getElementById("historyBody").innerHTML = `<tr><td colspan="6" style="color:red;">ไม่สามารถดึงข้อมูลประวัติได้</td></tr>`;
+    document.getElementById("historyBody").innerHTML = `<tr><td colspan="6" style="color:red;">ไม่สามารถดึงข้อมูลประวัติแจ้งเตือนได้</td></tr>`;
   }
 }
 
-// 3. ฟังก์ชันสร้างตาราง
+// ฟังก์ชันสร้างตาราง
 function render() {
   const q = (document.getElementById("search").value || "").toLowerCase();
   const date = document.getElementById("dateFilter").value;
   
-  // กรองข้อมูลตามการค้นหาและวันที่
+  // กรองข้อมูลตามการค้นหาและวันที่ (ใช้ created_at)
   const rows = allRows.filter(r => {
-    const d = new Date(r.recorded_at);
+    const d = new Date(r.created_at);
     const okDate = !date || d.toLocaleDateString("en-CA", {timeZone:"Asia/Bangkok"}) === date;
-    const text = `${r.temperature} ${r.recorded_at}`.toLowerCase();
+    // ค้นหาจากข้อความ message หรือ temperature
+    const text = `${r.temperature} ${r.message || ''}`.toLowerCase();
     return okDate && text.includes(q);
   });
   
   const body = document.getElementById("historyBody");
   
-  // นำข้อมูลลงตาราง
+  // นำข้อมูลลงตาราง โดยดึงค่าตรงๆ จากตาราง alerts ใน Supabase
   body.innerHTML = rows.length ? rows.map((r, i) => {
-    const temp = Number(r.temperature);
-    const isDanger = temp > dangerThreshold; 
-    
     return `<tr>
       <td>${i + 1}</td>
-      <td>${formatDate(r.recorded_at)}</td>
-      <td><b>${temp.toFixed(1)}</b></td>
-      <td><span class="status-pill ${isDanger ? 'danger' : 'normal'}">${isDanger ? 'อันตราย' : 'ปกติ'}</span></td>
-      <td>-</td>
-      <td>${isDanger ? `อุณหภูมิเกิน ${dangerThreshold}°C` : '-'}</td>
+      <td>${formatDate(r.created_at)}</td>
+      <td><b>${Number(r.temperature).toFixed(2)}</b></td>
+      <td><span class="status-pill danger">อันตราย</span></td>
+      <td>${r.line_sent ? '✅ ส่งแล้ว' : '❌ ไม่สำเร็จ'}</td>
+      <td>${r.message || '-'}</td>
     </tr>`;
   }).join("") : `<tr><td colspan="6">ไม่พบข้อมูล</td></tr>`;
-}
-
-// 4. ฟังก์ชันเริ่มต้นระบบสำหรับหน้านี้
-async function initHistoryPage() {
-  // ต้องโหลด Settings ก่อน เพื่อให้รู้ว่าเกณฑ์คือเท่าไหร่ ค่อยโหลดประวัติมาแสดง
-  await loadSettings();
-  await loadHistory();
-  
-  // อัปเดตข้อมูลอัตโนมัติทุกๆ 10 วินาที
-  setInterval(async () => {
-    await loadSettings();
-    await loadHistory();
-  }, 10000);
 }
 
 // ผูก Event Listener สำหรับช่องค้นหาและตัวกรองวันที่
@@ -94,4 +68,7 @@ document.getElementById("search").addEventListener("input", render);
 document.getElementById("dateFilter").addEventListener("change", render);
 
 // เริ่มการทำงาน
-initHistoryPage();
+loadHistory();
+
+// อัปเดตข้อมูลอัตโนมัติทุกๆ 10 วินาที
+setInterval(loadHistory, 10000);
