@@ -3,6 +3,11 @@ async function loadSettings(){
 }
 document.getElementById("saveSettings").addEventListener("click",async()=>{
   const payload={danger_threshold:Number(document.getElementById("dangerThreshold").value),reset_threshold:Number(document.getElementById("resetThreshold").value)};
-  try{await getJSON(API.settings,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});alert("บันทึกการตั้งค่าแล้ว");}catch(e){alert("บันทึกไม่สำเร็จ");}
+  try{await getJSON(API.settings,{method:"PUT",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});
+  alert("บันทึกการตั้งค่าแล้ว");}
+  catch(e) {
+  alert("บันทึกไม่สำเร็จ: " + e.message);
+  console.error("รายละเอียด Error:", e);
+}
 });
 loadSettings();
