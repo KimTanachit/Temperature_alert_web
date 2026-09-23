@@ -24,6 +24,19 @@
     .thermal-status.offline { background: #fff3e6; color: #92400e; }
     .thermal-note { font-size: 13px; margin-bottom: 0; }
     #lastUpdated { overflow-wrap: anywhere; }
+    .alarm-card { margin-top: 24px; }
+    .alarm-fields { border: 0; padding: 0; margin: 0; display: grid; gap: 16px; }
+    .alarm-fields label { display: grid; gap: 8px; color: #344054; }
+    .alarm-fields .check-label { display: flex; align-items: center; gap: 10px; }
+    .alarm-fields input:not([type=checkbox]), .alarm-fields select { width: 100%; min-width: 0; padding: 12px; font: inherit; border: 1px solid #cbd5e1; border-radius: 8px; background: white; }
+    .alarm-thresholds { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .alarm-fields button, #reloadAlarm { padding: 12px 18px; font: inherit; border: 0; border-radius: 8px; background: #24548e; color: white; cursor: pointer; }
+    .alarm-fields button:disabled { opacity: .5; cursor: wait; }
+    #alarmMessage { line-height: 1.7; color: #475467; }
+    .buzzer-on { color: #b42318 !important; }
+    #stopBuzzer { width: 100%; margin-top: 14px; padding: 14px; border: 0; border-radius: 10px; background: #b42318; color: white; font: inherit; font-weight: bold; cursor: pointer; }
+    #stopBuzzer:disabled { opacity: .6; cursor: wait; }
+    @media (max-width: 600px) { .alarm-thresholds { grid-template-columns: 1fr; } }
     @media (max-width: 1050px) { .thermal-layout { grid-template-columns: 1fr; } }
     @media (max-width: 600px) { .thermal-card { padding: 16px; } .top-title { font-size: 15px; } .top-user { padding: 0 10px; font-size: 12px; } }
   </style>
@@ -66,7 +79,7 @@
     <div class="thermal-page">
       <div class="thermal-heading">
         <h1>Thermal Monitor</h1>
-        <p>ติดตามภาพความร้อนและอุณหภูมิจากเซ็นเซอร์ 8 × 8 ผ่านระบบ Cloud</p>
+        <p>ภาพความร้อน AMG8833 • เซ็นเซอร์วัดอุณหภูมิ DS18B20 • เสียงเตือน Buzzer</p>
       </div>
       <section class="thermal-layout" aria-label="ข้อมูล AMG8833">
         <div class="thermal-card">
@@ -74,17 +87,42 @@
           <div class="thermal-canvas-wrap"><canvas id="thermalCanvas" width="512" height="512" role="img" aria-label="ภาพความร้อนจาก AMG8833">ภาพความร้อน โดยมีค่าอุณหภูมิสรุปอยู่ถัดไป</canvas></div>
           <div class="thermal-scale" aria-hidden="true"></div>
           <div class="scale-labels"><span id="scaleMin">-- °C</span><span id="scaleMax">-- °C</span></div>
-          <p class="thermal-note">ข้อมูลจริง 64 จุด (8 × 8) ปรับภาพให้เรียบเป็น 64 × 64 เพื่อการแสดงผล สีปรับตามค่าต่ำสุดและสูงสุดของแต่ละภาพ</p>
+          <p class="thermal-note">ข้อมูลจริง 64 จุด (8 × 8) ปรับภาพให้เรียบเป็น 128 × 128 เพื่อการแสดงผล สีปรับตามค่าต่ำสุดและสูงสุดของแต่ละภาพ</p>
         </div>
         <div class="thermal-card">
           <h2>อุณหภูมิที่ตรวจวัด</h2>
           <div class="thermal-row"><span>ต่ำสุด (Min)</span><b id="amgMin">-- °C</b></div>
           <div class="thermal-row"><span>สูงสุด (Max)</span><b id="amgMax">-- °C</b></div>
           <div class="thermal-row"><span>กึ่งกลาง (Center)</span><b id="amgCenter">-- °C</b></div>
+          <div class="thermal-row"><span>เซ็นเซอร์แท่ง DS18B20</span><b id="dsTemp">-- °C</b><p class="thermal-note" id="dsStatus">กำลังรอข้อมูล</p></div>
+          <div class="thermal-row"><span>Buzzer</span><b id="buzzerState">--</b><p class="thermal-note" id="buzzerDetail">กำลังรอข้อมูล</p><button id="stopBuzzer" type="button">หยุดร้อง</button><p class="thermal-note" id="stopMessage" role="status"></p></div>
           <div class="thermal-status offline" id="thermalStatus" role="status">กำลังรอข้อมูล AMG8833</div>
           <p class="thermal-note">อัปเดตล่าสุด: <span id="lastUpdated">--</span></p>
           <p class="thermal-note">ค่ากึ่งกลางเป็นค่าเฉลี่ยของ 4 จุดตรงกลางเซ็นเซอร์</p>
         </div>
+      </section>
+      <section class="thermal-card alarm-card" aria-labelledby="alarmTitle">
+        <h2 id="alarmTitle">ตั้งค่าเสียงเตือน Buzzer</h2>
+        <form id="alarmForm">
+          <fieldset class="alarm-fields" id="alarmFields" disabled>
+            <label class="check-label"><input type="checkbox" id="alarmEnabled"> เปิดใช้เสียงเตือนอุณหภูมิ</label>
+            <label for="alarmSource">ใช้ค่าอุณหภูมิจาก
+              <select id="alarmSource">
+                <option value="ds18b20">DS18B20 — เซ็นเซอร์แท่ง</option>
+                <option value="amg_max">AMG8833 — ค่าสูงสุด (Max)</option>
+                <option value="amg_center">AMG8833 — ค่ากึ่งกลาง (Center)</option>
+                <option value="amg_min">AMG8833 — ค่าต่ำสุด (Min)</option>
+              </select>
+            </label>
+            <label for="alarmOn">เริ่มดังเมื่ออุณหภูมิตั้งแต่ (°C)<input id="alarmOn" type="number" step="0.01" min="-55" max="125" required></label>
+            <button type="submit" id="saveAlarm">บันทึกการตั้งค่า</button>
+          </fieldset>
+        </form>
+        <p id="alarmMessage" role="status">กำลังโหลดการตั้งค่า…</p>
+        <button id="reloadAlarm" type="button" hidden>ลองโหลดการตั้งค่าอีกครั้ง</button>
+        <p class="thermal-note">เมื่อถึงเกณฑ์จะดังต่อเนื่องจนกด “หยุดร้อง” หลังหยุดจะไม่ดังซ้ำขณะยังร้อนอยู่ และจะพร้อมเตือนรอบใหม่เมื่ออุณหภูมิลดต่ำกว่าเกณฑ์แล้วขึ้นถึงเกณฑ์อีกครั้ง</p>
+        <p class="thermal-note">หลังบอร์ดรับค่าตั้งแล้วจะตรวจอุณหภูมิและส่งเสียงเอง ปุ่มหยุดบนเว็บต้องรอคำสั่งไปถึงบอร์ด หากขาดการเชื่อมต่อจะยังหยุดผ่านเว็บไม่ได้</p>
+        <p class="thermal-note">การตั้งค่านี้ใช้กับ Buzzer บนบอร์ด ส่วนการแจ้งเตือน LINE ใช้การตั้งค่าเดิมของระบบ</p>
       </section>
     </div>
   </main>
