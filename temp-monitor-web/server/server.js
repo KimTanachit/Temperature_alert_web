@@ -67,8 +67,16 @@ app.post("/api/auth/logout", (req, res) => {
   });
 });
 
-// บล็อกหน้า Admin ไม่ให้ User ทั่วไปเข้าตรงๆ
-app.get(["/servocontrol.html", "/settings.html"], requireAdmin, (req, res, next) => {
+// Send visitors to login before serving the thermal camera page.
+function requireThermalLogin(req, res, next) {
+  if (req.session && req.session.isAdmin) {
+    return next();
+  }
+  return res.redirect("/login.html?next=%2Fservocontrol.html");
+}
+
+app.get("/servocontrol.html", requireThermalLogin);
+app.get("/settings.html", requireAdmin, (req, res, next) => {
   next();
 });
 
