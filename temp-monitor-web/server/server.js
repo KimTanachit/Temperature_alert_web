@@ -5,6 +5,7 @@ const path = require("path");
 const session = require("express-session");
 const { createClient } = require("@supabase/supabase-js");
 const { Server } = require("socket.io");
+const { registerBuzzerSettings } = require("./buzzer-settings");
 
 const app = express();
 const server = http.createServer(app);
@@ -104,6 +105,8 @@ const supabase = createClient(
     },
   }
 );
+
+const buzzerSettings = registerBuzzerSettings(app, supabase, requireAdmin);
 
 let currentTemperature = null;
 let lastSensorSeen = null;
@@ -635,8 +638,29 @@ let servoCommand = {
   updatedAt: Date.now(),
 };
 
-// ข้อมูลเซ็นเซอร์ (เอาไว้รับค่าจาก ESP8266 เหมือนเดิม)
-let servoSensors = { /* ... โค้ดเซ็นเซอร์เดิม ... */ };
+// Latest sensor upload from the board, read by Thermal Monitor.
+let servoSensors = {
+  distance_mm: -1,
+  object_temp_c: null,
+  ambient_temp_c: null,
+  room_temp_c: null,
+  ds18b20_temp_c: null,
+  ds18b20_status: 0,
+  amg_status: 0,
+  amg_min_temp_c: null,
+  amg_max_temp_c: null,
+  amg_center_temp_c: null,
+  amg_pixels: [],
+  buzzer_status: -1,
+  buzzer_config_version: 0,
+  buzzer_input_status: 0,
+  buzzer_stop_version: 0,
+  buzzer_muted: 0,
+  sensor_status: 0,
+  sensor_text: "waiting for board",
+  mlx_address: -1,
+  updatedAt: 0,
+};
 
 let servoWaiters = [];
 const SERVO_API_TOKEN = process.env.API_TOKEN || "servo-god-1234";
@@ -742,7 +766,44 @@ app.get("/api/command", (req, res) => {
   res.json(servoCommand);
 });
 
-// ... (ส่วน app.post("/api/sensors", ...) และ app.get("/api/sensors", ...) เก็บไว้เหมือนเดิม) ...
+app.post("/api/sensors", (req, res) => {
+  if (req.body.token !== SERVO_API_TOKEN) {
+    return res.status(401).json({ error: "bad token" });
+  }
+
+  servoSensors = {
+    distance_mm: Number(req.body.distance_mm ?? -1),
+    object_temp_c: req.body.object_temp_c ?? null,
+    ambient_temp_c: req.body.ambient_temp_c ?? null,
+    room_temp_c: req.body.room_temp_c ?? null,
+    ds18b20_temp_c: req.body.ds18b20_temp_c ?? null,
+    ds18b20_status: Number(req.body.ds18b20_status ?? 0),
+    amg_status: Number(req.body.amg_status ?? 0),
+    amg_min_temp_c: req.body.amg_min_temp_c ?? null,
+    amg_max_temp_c: req.body.amg_max_temp_c ?? null,
+    amg_center_temp_c: req.body.amg_center_temp_c ?? null,
+    amg_pixels: Array.isArray(req.body.amg_pixels) ? req.body.amg_pixels : [],
+    buzzer_status: Number(req.body.buzzer_status ?? -1),
+    buzzer_config_version: Number(req.body.buzzer_config_version ?? 0),
+    buzzer_input_status: Number(req.body.buzzer_input_status ?? 0),
+    buzzer_stop_version: Number(req.body.buzzer_stop_version ?? 0),
+    buzzer_muted: Number(req.body.buzzer_muted ?? 0),
+    sensor_status: Number(req.body.sensor_status ?? 0),
+    sensor_text: req.body.sensor_text || "unknown",
+    mlx_address: Number(req.body.mlx_address ?? -1),
+    updatedAt: Date.now(),
+  };
+
+  res.json({
+    ok: true,
+    sensors: servoSensors,
+    buzzer_config: buzzerSettings.current(),
+  });
+});
+
+app.get("/api/sensors", (req, res) => {
+  res.set("Cache-Control", "no-store").json(servoSensors);
+});
 
 // =====================================================
 // SOCKET.IO & SERVER LISTEN
@@ -765,6 +826,7 @@ io.on("connection", (socket) => {
 
 (async () => {
   await loadSettings();
+  await buzzerSettings.load();
 
   server.listen(PORT, () => {
     console.log(`Temperature monitor running on port ${PORT}`);
