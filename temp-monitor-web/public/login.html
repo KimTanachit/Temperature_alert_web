@@ -78,6 +78,12 @@
   </div>
 
   <script>
+    // Only allow known local pages as post-login destinations.
+    const requestedPage = new URLSearchParams(window.location.search).get("next");
+    const nextPage = ["/servocontrol.html", "/settings.html"].includes(requestedPage)
+      ? requestedPage
+      : "/settings.html";
+
     document.getElementById("loginForm").addEventListener("submit", async (e) => {
       e.preventDefault();
       const username = document.getElementById("username").value.trim();
@@ -92,8 +98,8 @@
         });
         const data = await res.json();
 
-        if (data.success) {
-          window.location.href = "/settings.html";
+        if (res.ok && data.success) {
+          window.location.href = nextPage;
         } else {
           errorMsg.innerText = data.message || "เข้าสู่ระบบไม่สำเร็จ";
           errorMsg.style.display = "block";
