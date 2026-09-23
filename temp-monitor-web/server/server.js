@@ -1,145 +1,828 @@
-"use strict";
-const thermalStatusEl = document.getElementById("thermalStatus");
-const temperatureIds = ["amgMin", "amgMax", "amgCenter", "scaleMin", "scaleMax"];
-function setTempText(id, value) {
-  document.getElementById(id).textContent = typeof value === "number" && Number.isFinite(value) ? value.toFixed(2) + " °C" : "-- °C";
+require("dotenv").config();
+const express = require("express");
+const http = require("http");
+const path = require("path");
+const session = require("express-session");
+const { createClient } = require("@supabase/supabase-js");
+const { Server } = require("socket.io");
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+const PORT = process.env.PORT || 3000;
+
+const ESP32_API_TOKEN = process.env.ESP32_API_TOKEN ||"SensorT22";
+
+// รองรับ Reverse Proxy บน Render เพื่อให้ Cookie ทำงานได้ถูกต้อง
+app.set("trust proxy", 1);
+
+// Middleware อ่าน Body
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// ตั้งค่า Session
+app.use(
+  session({
+    secret: process.env.SESSION_SECRET || "temp-alert-secret-key-12345",
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+      maxAge: 24 * 60 * 60 * 1000, // อยู่ได้ 1 วัน
+      secure: false, // ถ้าใช้ HTTPS แล้วติดปัญหา session หลุดสามารถเปิดเป็น true หรือปล่อย false ในโหมดปกติ
+    },
+  })
+);
+
+// Middleware ตรวจสอบสิทธิ์ Admin
+function requireAdmin(req, res, next) {
+  if (req.session && req.session.isAdmin) {
+    return next();
+  }
+  return res.status(403).send("Forbidden: เฉพาะ Admin เท่านั้นที่เข้าถึงได้");
 }
-        function tempToColor(value, min, max) {
-            if (max <= min) {
-                max = min + 1;
-            }
 
-            const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+// =====================================================
+// AUTH API (ระบบตรวจสอบสิทธิ์ Admin)
+// =====================================================
 
-            let r = 0;
-            let g = 0;
-            let b = 0;
+app.get("/api/auth/status", (req, res) => {
+  res.json({ isAdmin: !!(req.session && req.session.isAdmin) });
+});
 
-            if (t < 0.25) {
-                const k = t / 0.25;
-                r = 0;
-                g = Math.round(80 * k);
-                b = Math.round(255);
-            } else if (t < 0.5) {
-                const k = (t - 0.25) / 0.25;
-                r = Math.round(255 * k);
-                g = Math.round(80 + 120 * k);
-                b = Math.round(255 * (1 - k));
-            } else if (t < 0.75) {
-                const k = (t - 0.5) / 0.25;
-                r = 255;
-                g = Math.round(200 * (1 - k));
-                b = 0;
-            } else {
-                const k = (t - 0.75) / 0.25;
-                r = 255;
-                g = Math.round(255 * k);
-                b = Math.round(255 * k);
-            }
+app.post("/api/auth/login", (req, res) => {
+  const { username, password } = req.body;
+  // ตั้ง User: admin / Password: admin1234
+  if (username === "admin" && password === "admin1234") {
+    req.session.isAdmin = true;
+    return res.json({ success: true, message: "เข้าสู่ระบบสำเร็จ" });
+  }
+  return res.status(401).json({ success: false, message: "ชื่อผู้ใช้หรือรหัสผ่านไม่ถูกต้อง" });
+});
 
-            return `rgb(${r}, ${g}, ${b})`;
-        }
+app.post("/api/auth/logout", (req, res) => {
+  req.session.destroy((err) => {
+    if (err) return res.status(500).json({ success: false });
+    res.clearCookie("connect.sid");
+    return res.json({ success: true, message: "ออกจากระบบสำเร็จ" });
+  });
+});
 
-        function lerp(a, b, t) {
-            return a + (b - a) * t;
-        }
-
-        function getPixelBilinear(pixels, x, y) {
-            const x0 = Math.floor(x);
-            const y0 = Math.floor(y);
-            const x1 = Math.min(x0 + 1, 7);
-            const y1 = Math.min(y0 + 1, 7);
-
-            const tx = x - x0;
-            const ty = y - y0;
-
-            const p00 = Number(pixels[y0 * 8 + x0]);
-            const p10 = Number(pixels[y0 * 8 + x1]);
-            const p01 = Number(pixels[y1 * 8 + x0]);
-            const p11 = Number(pixels[y1 * 8 + x1]);
-
-            const top = lerp(p00, p10, tx);
-            const bottom = lerp(p01, p11, tx);
-
-            return lerp(top, bottom, ty);
-        }
-
-        function drawEmptyThermal(message = "No thermal data") {
-            const canvas = document.getElementById("thermalCanvas");
-            const ctx = canvas.getContext("2d");
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#0b1220";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const cell = canvas.width / 8;
-
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    ctx.strokeStyle = "rgba(255,255,255,0.10)";
-                    ctx.strokeRect(col * cell, row * cell, cell, cell);
-                }
-            }
-
-            ctx.fillStyle = "#94a3b8";
-            ctx.font = "22px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(message, canvas.width / 2, canvas.height / 2);
-        }
-
-
-function showUnavailable(message) {
-  drawEmptyThermal("ไม่มีข้อมูลภาพความร้อน");
-  temperatureIds.forEach(id => setTempText(id, null));
-  thermalStatusEl.textContent = message;
-  thermalStatusEl.classList.add("offline");
+// Send visitors to login before serving the thermal camera page.
+function requireThermalLogin(req, res, next) {
+  if (req.session && req.session.isAdmin) {
+    return next();
+  }
+  return res.redirect("/login.html?next=%2Fservocontrol.html");
 }
-function drawThermal(data) {
-  const timestamp = Number(data?.updatedAt);
-  document.getElementById("lastUpdated").textContent = Number.isFinite(timestamp) && timestamp > 0
-    ? new Date(timestamp).toLocaleString("th-TH") : "--";
-  if (!Number.isFinite(timestamp) || timestamp <= 0 || Date.now() - timestamp > 15000) {
-    showUnavailable("ไม่ได้รับข้อมูลใหม่จากบอร์ด"); return;
+
+app.get("/servocontrol.html", requireThermalLogin);
+app.get("/settings.html", requireAdmin, (req, res, next) => {
+  next();
+});
+
+// เสิร์ฟโฟลเดอร์ Public (ต้องอยู่หลังบล็อกหน้า HTML)
+app.use(express.static(path.join(__dirname, "..", "public")));
+
+// =====================================================
+// SUPABASE
+// =====================================================
+
+if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error(
+    "[SUPABASE] กรุณาตั้ง SUPABASE_URL และ SUPABASE_SERVICE_ROLE_KEY ใน .env"
+  );
+  process.exit(1);
+}
+
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY,
+  {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
   }
-  if (Number(data.amg_status) !== 1) {
-    showUnavailable("ไม่พบเซ็นเซอร์ AMG8833"); return;
+);
+
+let currentTemperature = null;
+let lastSensorSeen = null;
+
+let dangerThreshold = 100;
+let resetThreshold = 100;
+
+let dangerLatched = false;
+let lastLineAlert = 0;
+let lastDbSave = 0;
+
+const LINE_ALERT_INTERVAL = 30 * 1000;
+
+async function loadSettings() {
+  const { data, error } = await supabase
+    .from("settings")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[DB] settings error:", error.message);
+    return;
   }
-  const pixels = data.amg_pixels;
-  if (!Array.isArray(pixels) || pixels.length !== 64 || pixels.some(v => typeof v !== "number" || !Number.isFinite(v))) {
-    showUnavailable("ข้อมูลภาพความร้อนไม่ครบ 64 จุด"); return;
+
+  if (data) {
+    dangerThreshold = Number(data.danger_threshold ?? 100);
+    resetThreshold = Number(data.reset_threshold ?? 100);
+
+    console.log(
+      `[SETTINGS] danger=${dangerThreshold}, reset=${resetThreshold}`
+    );
   }
-  setTempText("amgMin", data.amg_min_temp_c);
-  setTempText("amgMax", data.amg_max_temp_c);
-  setTempText("amgCenter", data.amg_center_temp_c);
-  const min = Math.min(...pixels), max = Math.max(...pixels);
-  setTempText("scaleMin", min); setTempText("scaleMax", max);
-  const canvas = document.getElementById("thermalCanvas"), ctx = canvas.getContext("2d");
-  const size = 64, cell = canvas.width / size;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  for (let row = 0; row < size; row++) {
-    for (let col = 0; col < size; col++) {
-      const temp = getPixelBilinear(pixels, col / (size - 1) * 7, row / (size - 1) * 7);
-      ctx.fillStyle = tempToColor(temp, min, max);
-      ctx.fillRect(col * cell, row * cell, cell, cell);
+}
+
+async function sendLineAlert(temp, testRound = null) {
+  if (
+    !process.env.LINE_CHANNEL_ACCESS_TOKEN ||
+    !process.env.LINE_TO_USER_ID
+  ) {
+    console.log(
+      "[LINE] ยังไม่ได้ตั้งค่า LINE_CHANNEL_ACCESS_TOKEN หรือ LINE_TO_USER_ID"
+    );
+    return false;
+  }
+
+  let messageText;
+  if (testRound !== null) {
+    messageText =
+      `🧪 ทดสอบแจ้งเตือนครั้งที่ ${testRound}/10\n` +
+      `🔥 อุณหภูมิ: ${Number(temp).toFixed(1)}°C\n` +
+      `เกินเกณฑ์ ${dangerThreshold}°C`;
+  } else {
+    messageText =
+      `🔥 แจ้งเตือนอุณหภูมิสูง!\n` +
+      `อุณหภูมิปัจจุบัน: ${Number(temp).toFixed(1)}°C\n` +
+      `เกินเกณฑ์ ${dangerThreshold}°C`;
+  }
+
+  try {
+    const response = await fetch("https://api.line.me/v2/bot/message/push", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+      },
+      body: JSON.stringify({
+        to: process.env.LINE_TO_USER_ID,
+        messages: [{ type: "text", text: messageText }],
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("[LINE] ส่งไม่สำเร็จ:", errorText);
+      return false;
+    }
+
+    console.log(
+      testRound !== null
+        ? `[LINE TEST] ส่งครั้งที่ ${testRound}/10 สำเร็จ`
+        : "[LINE] ส่งแจ้งเตือนแล้ว"
+    );
+    return true;
+  } catch (error) {
+    console.error("[LINE] connection error:", error.message);
+    return false;
+  }
+}
+
+async function saveTemperature(temp, timestamp) {
+  const d = new Date(timestamp);
+  const thai = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  })
+    .formatToParts(d)
+    .reduce((o, p) => {
+      o[p.type] = p.value;
+      return o;
+    }, {});
+
+  const readingDate = `${thai.year}-${thai.month}-${thai.day}`;
+  const readingTime = `${thai.hour}:${thai.minute}:${thai.second}`;
+
+  const { error } = await supabase.from("temperature_readings").insert({
+    reading_date: readingDate,
+    reading_time: readingTime,
+    temperature: Number(temp),
+    created_at: d.toISOString(),
+  });
+
+  if (error) throw error;
+  lastDbSave = Date.now();
+}
+
+async function saveAlert(temp, lineSent) {
+  const { error } = await supabase.from("alerts").insert({
+    temperature: Number(temp),
+    threshold: dangerThreshold,
+    line_sent: !!lineSent,
+    message: `อุณหภูมิเกิน ${dangerThreshold}°C`,
+  });
+
+  if (error) {
+    console.error("[DB] alert save error:", error.message);
+  }
+}
+
+async function processTemperature(temp) {
+  temp = Number(temp);
+  if (!Number.isFinite(temp)) {
+    throw new Error("temperature must be a number");
+  }
+
+  currentTemperature = temp;
+  lastSensorSeen = new Date();
+
+  io.emit("temperature", {
+    temperature: temp,
+    timestamp: lastSensorSeen.toISOString(),
+  });
+
+  if (temp > dangerThreshold) {
+    const now = Date.now();
+    if (!dangerLatched || now - lastLineAlert >= LINE_ALERT_INTERVAL) {
+      dangerLatched = true;
+      lastLineAlert = now;
+
+      console.log(`[ALERT] Temperature ${temp}°C >${dangerThreshold}°C`);
+      const lineSent = await sendLineAlert(temp);
+      await saveAlert(temp, lineSent);
+
+      io.emit("alert", {
+        temperature: temp,
+        threshold: dangerThreshold,
+        line_sent: lineSent,
+      });
     }
   }
-  thermalStatusEl.textContent = "AMG8833 เชื่อมต่อแล้ว • 64 จุด";
-  thermalStatusEl.classList.remove("offline");
-}
-async function readSensors() {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 5000);
-  try {
-    const response = await fetch("/api/sensors", { cache: "no-store", signal: controller.signal });
-    if (!response.ok) throw new Error("HTTP " + response.status);
-    drawThermal(await response.json());
-  } catch {
-    showUnavailable("เชื่อมต่อ Cloud ไม่ได้ กำลังลองใหม่");
-  } finally {
-    clearTimeout(timeout);
-    setTimeout(readSensors, 1000);
+
+  if (temp <= resetThreshold) {
+    dangerLatched = false;
+    lastLineAlert = 0;
   }
+
 }
-showUnavailable("กำลังรอข้อมูล AMG8833");
-readSensors();
+
+// =====================================================
+// API ROUTES
+// =====================================================
+// =====================================================
+// ESP32 REALTIME
+// รับค่าทุกประมาณ 3 วินาที
+// ไม่บันทึกลง Supabase
+// =====================================================
+app.post("/api/realtime", async (req, res) => {
+
+  try {
+
+    // =================================================
+    // AUTH
+    // =================================================
+
+    const auth =
+      req.headers.authorization || "";
+
+    if (
+      auth !==
+      `Bearer ${ESP32_API_TOKEN}`
+    ) {
+
+      return res.status(401).json({
+        ok: false,
+        error: "Invalid ESP32 API token",
+      });
+    }
+
+
+    // =================================================
+    // READ DATA
+    // =================================================
+
+    const temperature =
+      Number(
+        req.body.temperature_c
+      );
+
+    const deviceId =
+      req.body.device_id ||
+      "ESP32_NODE_02";
+
+
+    // =================================================
+    // VALIDATE
+    // =================================================
+
+    if (
+      !Number.isFinite(
+        temperature
+      )
+    ) {
+
+      return res.status(400).json({
+        ok: false,
+        error:
+          "temperature_c must be a number",
+      });
+    }
+
+
+    // =================================================
+    // PROCESS REALTIME
+    // =================================================
+
+    await processTemperature(
+      temperature
+    );
+
+
+    // =================================================
+    // UPDATE DEVICE STATUS
+    // =================================================
+
+    const {
+      error: deviceError
+    } =
+      await supabase
+        .from("device_status")
+        .update({
+
+          last_seen:
+            lastSensorSeen.toISOString(),
+
+          sensor_status: true,
+
+          wifi_status: true,
+
+        })
+        .eq("id", 1);
+
+
+    if (deviceError) {
+
+      console.error(
+        "[DB] device status error:",
+        deviceError.message
+      );
+    }
+
+
+    // =================================================
+    // LOG
+    // =================================================
+
+    console.log(
+      `[REALTIME] ${deviceId}: ${temperature.toFixed(2)}°C`
+    );
+
+
+    // =================================================
+    // RESPONSE
+    // =================================================
+
+    return res.status(200).json({
+
+      ok: true,
+
+      device_id:
+        deviceId,
+
+      temperature_c:
+        temperature,
+
+      timestamp:
+        lastSensorSeen.toISOString(),
+
+    });
+
+  } catch (err) {
+
+    console.error(
+      "[REALTIME] error:",
+      err.message
+    );
+
+    return res.status(500).json({
+
+      ok: false,
+
+      error:
+        err.message,
+
+    });
+  }
+});
+
+app.get("/api/realtime", (req, res) => {
+  res.json({
+    ok: true,
+    temperature: currentTemperature,
+    last_seen: lastSensorSeen,
+  });
+});
+// =====================================================
+// ESP32 AVERAGE
+// รับค่าเฉลี่ยทุก 3 นาที
+// บันทึกลง Supabase
+// =====================================================
+app.post("/api/average", async (req, res) => {
+  try {
+    const auth = req.headers.authorization || "";
+
+    if (auth !== `Bearer ${ESP32_API_TOKEN}`) {
+      return res.status(401).json({
+        error: "Invalid ESP32 API token"
+      });
+    }
+
+    const temperature = Number(req.body.temperature_c);
+    const deviceId = req.body.device_id || "ESP32_NODE_02";
+    const seq = Number(req.body.seq);
+
+    if (!Number.isFinite(temperature)) {
+      return res.status(400).json({
+        error: "temperature_c must be a number"
+      });
+    }
+
+    if (!Number.isInteger(seq)) {
+      return res.status(400).json({
+        error: "seq must be an integer"
+      });
+    }
+
+    const timestamp = new Date();
+
+    // บันทึกค่าเฉลี่ยลง Supabase
+    await saveTemperature(
+      temperature,
+      timestamp
+    );
+
+    console.log(
+      `[AVERAGE] ${deviceId} | ${temperature.toFixed(2)}°C | SEQ=${seq}`
+    );
+
+    return res.status(201).json({
+      ok: true,
+      device_id: deviceId,
+      temperature_c: temperature,
+      seq: seq,
+      saved_at: timestamp.toISOString()
+    });
+
+  } catch (err) {
+
+    console.error(
+      "[AVERAGE] save error:",
+      err.message
+    );
+
+    return res.status(500).json({
+      error: err.message
+    });
+  }
+});
+
+app.get("/api/temperature/current", (req, res) => {
+  res.json({
+    temperature: currentTemperature,
+    last_seen: lastSensorSeen,
+  });
+});
+
+app.get("/api/temperature/history", async (req, res) => {
+  const minutes = Math.min(Math.max(Number(req.query.minutes || 1440), 1), 43200);
+  const since = new Date(Date.now() - minutes * 60 * 1000).toISOString();
+
+  const { data, error } = await supabase
+    .from("temperature_readings")
+    .select("id, temperature, reading_date, reading_time, created_at")
+    .gte("created_at", since)
+    .order("created_at", { ascending: true });
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json(
+    (data || []).map((r) => ({
+      id: r.id,
+      temperature: r.temperature,
+      recorded_at: r.created_at || `${r.reading_date}T${r.reading_time}+07:00`,
+    }))
+  );
+});
+
+app.get("/api/alerts", async (req, res) => {
+  const { data, error } = await supabase
+    .from("alerts")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(500);
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
+});
+
+app.post("/api/sensor/temperature", async (req, res) => {
+  if (req.headers["x-sensor-api-key"] !== process.env.SENSOR_API_KEY) {
+    return res.status(401).json({ error: "Invalid sensor API key" });
+  }
+
+  try {
+    await processTemperature(req.body.temperature);
+
+    const { error: deviceError } = await supabase
+      .from("device_status")
+      .update({
+        last_seen: new Date().toISOString(),
+        sensor_status: true,
+        wifi_status: true,
+      })
+      .eq("id", 1);
+
+    if (deviceError) {
+      console.error("[DB] device status error:", deviceError.message);
+    }
+
+    res.json({ ok: true, temperature: currentTemperature });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+app.get("/api/device/status", async (req, res) => {
+  const servoLastSeen = servoSensors?.updatedAt
+    ? new Date(Number(servoSensors.updatedAt))
+    : null;
+  const tempLastSeen = lastSensorSeen || null;
+
+  const latestSeen =
+    servoLastSeen && tempLastSeen
+      ? new Date(Math.max(servoLastSeen.getTime(), tempLastSeen.getTime()))
+      : servoLastSeen || tempLastSeen;
+
+  const isOnline = latestSeen && Date.now() - latestSeen.getTime() < 15000;
+
+  res.json({
+    online: !!isOnline,
+    wifi_status: !!isOnline,
+    controller_online: !!isOnline,
+    sensor_status: !!isOnline && Number(servoSensors.sensor_status) > 0,
+    last_seen: latestSeen ? latestSeen.toISOString() : null,
+    servo: {
+      ...servoSensors,
+      online: !!isOnline,
+    },
+  });
+});
+
+app.get("/api/settings", (req, res) => {
+  res.json({
+    danger_threshold: dangerThreshold,
+    reset_threshold: resetThreshold,
+  });
+});
+
+// บังคับเฉพาะ Admin เท่านั้นที่เปลี่ยนค่า settings ได้
+app.put("/api/settings", requireAdmin, async (req, res) => {
+  const danger = Number(req.body.danger_threshold);
+  const reset = Number(req.body.reset_threshold);
+
+  if (!Number.isFinite(danger) || !Number.isFinite(reset)) {
+    return res.status(400).json({ error: "invalid settings" });
+  }
+
+  dangerThreshold = danger;
+  resetThreshold = reset;
+
+  const { error } = await supabase.from("settings").upsert({
+    id: 1,
+    danger_threshold: danger,
+    reset_threshold: reset,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (error) return res.status(500).json({ error: error.message });
+
+  res.json({
+    ok: true,
+    danger_threshold: dangerThreshold,
+    reset_threshold: resetThreshold,
+  });
+});
+
+// =====================================================
+// SERVO LONG POLLING
+// =====================================================
+
+// =====================================================
+// SERVO LONG POLLING
+// =====================================================
+
+let servoCommand = {
+  x: 0,
+  y: 0,
+  trim_x: 0, // เพิ่มการรองรับค่า Trim แกน X
+  trim_y: 0, // เพิ่มการรองรับค่า Trim แกน Y
+  updatedAt: Date.now(),
+};
+
+let servoSensors = {
+  distance_mm: -1,
+  object_temp_c: null,
+  ambient_temp_c: null,
+
+  room_temp_c: null,
+  ds18b20_temp_c: null,
+  ds18b20_status: 0,
+
+  amg_status: 0,
+  amg_min_temp_c: null,
+  amg_max_temp_c: null,
+  amg_center_temp_c: null,
+  amg_pixels: [],
+
+  buzzer_status: 0,
+
+  sensor_status: 0,
+  sensor_text: "waiting for board",
+  mlx_address: -1,
+
+  updatedAt: Date.now(),
+};
+
+let servoWaiters = [];
+const SERVO_API_TOKEN = process.env.API_TOKEN || "servo-god-1234";
+
+function sendCommandToWaiters() {
+  const waiters = servoWaiters;
+  servoWaiters = [];
+
+  waiters.forEach((res) => {
+    res.json(servoCommand);
+  });
+}
+
+app.post("/api/move", requireAdmin, (req, res) => {
+  // รับค่า trim_x และ trim_y มาจากหน้าเว็บด้วย
+  const { token, x, y, trim_x, trim_y } = req.body;
+
+  if (token !== SERVO_API_TOKEN) {
+    return res.status(401).json({ error: "bad token" });
+  }
+
+  const nextX = Number(x);
+  const nextY = Number(y);
+  // ดึงค่า Trim ถ้าไม่ได้ส่งมาให้ตั้งเป็น 0
+  const nextTrimX = Number(trim_x ?? servoCommand.trim_x);
+  const nextTrimY = Number(trim_y ?? servoCommand.trim_y);
+
+  if (!Number.isInteger(nextX) || !Number.isInteger(nextY) || !Number.isInteger(nextTrimX) || !Number.isInteger(nextTrimY)) {
+    return res.status(400).json({ error: "values must be integers" });
+  }
+
+  // แก้ไข Validation ให้รองรับความเร็ว -100 ถึง 100
+  if (nextX < -100 || nextX > 100 || nextY < -100 || nextY > 100) {
+    return res.status(400).json({ error: "x/y must be between -100 and 100" });
+  }
+
+  // ป้องกันค่า Trim เกินขีดจำกัดมอเตอร์ (-45 ถึง 45)
+  if (nextTrimX < -45 || nextTrimX > 45 || nextTrimY < -45 || nextTrimY > 45) {
+    return res.status(400).json({ error: "trim must be between -45 and 45" });
+  }
+
+  const changed = 
+    servoCommand.x !== nextX || 
+    servoCommand.y !== nextY || 
+    servoCommand.trim_x !== nextTrimX || 
+    servoCommand.trim_y !== nextTrimY;
+
+  if (changed) {
+    servoCommand = {
+      x: nextX,
+      y: nextY,
+      trim_x: nextTrimX,
+      trim_y: nextTrimY,
+      updatedAt: Date.now(),
+    };
+
+    sendCommandToWaiters();
+  }
+
+  res.json({
+    ok: true,
+    command: servoCommand,
+  });
+});
+
+app.get("/api/command", (req, res) => {
+  if (req.query.token !== SERVO_API_TOKEN) {
+    return res.status(401).json({ error: "bad token" });
+  }
+
+  res.json(servoCommand);
+});
+
+app.get("/api/command/long", (req, res) => {
+  if (req.query.token !== SERVO_API_TOKEN) {
+    return res.status(401).json({ error: "bad token" });
+  }
+
+  const since = Number(req.query.since || 0);
+
+  if (servoCommand.updatedAt > since) {
+    return res.json(servoCommand);
+  }
+
+  const timeout = setTimeout(() => {
+    servoWaiters = servoWaiters.filter((waiter) => waiter !== res);
+    res.json(servoCommand);
+  }, 25000);
+
+  res.on("close", () => {
+    clearTimeout(timeout);
+    servoWaiters = servoWaiters.filter((waiter) => waiter !== res);
+  });
+
+  servoWaiters.push(res);
+});
+
+app.post("/api/sensors", (req, res) => {
+  if (req.body.token !== SERVO_API_TOKEN) {
+    return res.status(401).json({ error: "bad token" });
+  }
+
+  servoSensors = {
+    distance_mm: Number(req.body.distance_mm ?? -1),
+    object_temp_c: req.body.object_temp_c ?? null,
+    ambient_temp_c: req.body.ambient_temp_c ?? null,
+
+    room_temp_c: req.body.room_temp_c ?? null,
+    ds18b20_temp_c: req.body.ds18b20_temp_c ?? null,
+    ds18b20_status: Number(req.body.ds18b20_status ?? 0),
+
+    amg_status: Number(req.body.amg_status ?? 0),
+    amg_min_temp_c: req.body.amg_min_temp_c ?? null,
+    amg_max_temp_c: req.body.amg_max_temp_c ?? null,
+    amg_center_temp_c: req.body.amg_center_temp_c ?? null,
+    amg_pixels: Array.isArray(req.body.amg_pixels) ? req.body.amg_pixels : [],
+
+    buzzer_status: Number(req.body.buzzer_status ?? 0),
+
+    sensor_status: Number(req.body.sensor_status ?? 0),
+    sensor_text: req.body.sensor_text || "unknown",
+    mlx_address: Number(req.body.mlx_address ?? -1),
+
+    updatedAt: Date.now(),
+  };
+
+  res.json({
+    ok: true,
+    sensors: servoSensors,
+  });
+});
+
+app.get("/api/sensors", (req, res) => {
+  res.json(servoSensors);
+});
+
+// =====================================================
+// SOCKET.IO & SERVER LISTEN
+// =====================================================
+
+io.on("connection", (socket) => {
+  console.log("[SOCKET] client connected");
+
+  if (currentTemperature !== null) {
+    socket.emit("temperature", {
+      temperature: currentTemperature,
+      timestamp: lastSensorSeen?.toISOString(),
+    });
+  }
+
+  socket.on("disconnect", () => {
+    console.log("[SOCKET] client disconnected");
+  });
+});
+
+(async () => {
+  await loadSettings();
+
+  server.listen(PORT, () => {
+    console.log(`Temperature monitor running on port ${PORT}`);
+  });
+})();
