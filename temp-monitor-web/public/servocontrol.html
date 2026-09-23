@@ -1,233 +1,33 @@
 <!DOCTYPE html>
 <html lang="th">
-
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-
-    <title>Servo Control</title>
-
-    <link rel="stylesheet" href="css/style.css">
-
-    <style>
-        .servo-thermal-layout {
-            display: grid;
-            grid-template-columns: minmax(520px, 1fr) 420px;
-            gap: 24px;
-            align-items: start;
-            max-width: 1280px;
-        }
-
-        .servo-card,
-        .thermal-card {
-            background: #ffffff;
-            border-radius: 12px;
-            padding: 24px;
-            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
-        }
-
-        .servo-card h1,
-        .thermal-card h2 {
-            margin: 0 0 8px;
-            font-size: 26px;
-        }
-
-        .thermal-card h2 {
-            font-size: 22px;
-        }
-
-        .servo-card p,
-        .thermal-card p {
-            margin: 0 0 20px;
-            color: #667085;
-        }
-
-        .sensor-grid {
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 12px;
-            margin-bottom: 24px;
-        }
-
-        .sensor-box {
-            border: 1px solid #e4e7ec;
-            border-radius: 10px;
-            padding: 14px;
-            background: #f9fafb;
-        }
-
-        .sensor-label {
-            font-size: 13px;
-            color: #667085;
-            margin-bottom: 6px;
-        }
-
-        .sensor-value {
-            font-size: 22px;
-            font-weight: 700;
-            color: #101828;
-        }
-
-        .control-pad {
-            display: grid;
-            grid-template-columns: 90px 90px 90px;
-            grid-template-rows: 90px 90px 90px;
-            gap: 12px;
-            justify-content: center;
-            align-items: center;
-            margin-top: 8px;
-        }
-
-        .control-pad button {
-            width: 90px;
-            height: 90px;
-            border: none;
-            border-radius: 12px;
-            background: #ff6b35;
-            color: #ffffff;
-            font-size: 32px;
-            font-weight: 700;
-            cursor: pointer;
-            box-shadow: 0 5px 0 #b8421f;
-            user-select: none;
-            touch-action: manipulation;
-        }
-
-        .control-pad button:active,
-        .control-pad button.pressed {
-            transform: translateY(4px);
-            box-shadow: 0 1px 0 #b8421f;
-        }
-
-        .control-pad .stop {
-            background: #d92d20;
-            box-shadow: 0 5px 0 #8f1d14;
-            font-size: 20px;
-        }
-
-        .pad-empty {
-            width: 90px;
-            height: 90px;
-        }
-
-        .settings-pad {
-            margin-top: 24px;
-            background: #f9fafb;
-            padding: 16px;
-            border-radius: 10px;
-            border: 1px solid #e4e7ec;
-        }
-
-        .settings-pad .setting-group {
-            margin-bottom: 16px;
-        }
-
-        .settings-pad .setting-group:last-child {
-            margin-bottom: 0;
-        }
-
-        .settings-pad label {
-            display: flex;
-            justify-content: space-between;
-            font-size: 14px;
-            font-weight: 600;
-            color: #344054;
-            margin-bottom: 8px;
-        }
-
-        .settings-pad input[type="range"] {
-            width: 100%;
-            accent-color: #ff6b35;
-        }
-
-        .servo-status {
-            margin-top: 18px;
-            text-align: center;
-            color: #667085;
-            min-height: 22px;
-        }
-
-        .thermal-canvas-wrap {
-            width: 100%;
-            aspect-ratio: 1 / 1;
-            background: #111827;
-            border-radius: 16px;
-            padding: 12px;
-            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
-        }
-
-        #thermalCanvas {
-            width: 100%;
-            height: 100%;
-            display: block;
-            border-radius: 12px;
-            background: #0b1220;
-            image-rendering: auto;
-        }
-
-        .thermal-info {
-            display: grid;
-            grid-template-columns: 1fr;
-            gap: 10px;
-            margin-top: 16px;
-        }
-
-        .thermal-row {
-            display: flex;
-            justify-content: space-between;
-            gap: 12px;
-            padding: 12px;
-            border: 1px solid #e4e7ec;
-            border-radius: 10px;
-            background: #f9fafb;
-            color: #344054;
-        }
-
-        .thermal-row b {
-            color: #101828;
-        }
-
-        .thermal-status {
-            margin-top: 14px;
-            padding: 12px;
-            border-radius: 10px;
-            background: #eef6ff;
-            color: #1849a9;
-            font-weight: 700;
-            text-align: center;
-        }
-
-        .thermal-status.offline {
-            background: #fff1f0;
-            color: #b42318;
-        }
-
-        @media (max-width: 1100px) {
-            .servo-thermal-layout {
-                grid-template-columns: 1fr;
-                max-width: 760px;
-            }
-        }
-
-        @media (max-width: 640px) {
-            .sensor-grid {
-                grid-template-columns: 1fr;
-            }
-
-            .control-pad {
-                grid-template-columns: 76px 76px 76px;
-                grid-template-rows: 76px 76px 76px;
-            }
-
-            .control-pad button,
-            .pad-empty {
-                width: 76px;
-                height: 76px;
-            }
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Thermal Monitor</title>
+  <link rel="stylesheet" href="css/style.css">
+  <style>
+    .thermal-page { max-width: 1180px; margin: 0 auto; }
+    .thermal-heading { margin-bottom: 24px; }
+    .thermal-heading h1 { margin: 0 0 8px; font-size: clamp(24px, 3vw, 34px); }
+    .thermal-heading p, .thermal-note { color: #657383; line-height: 1.7; }
+    .thermal-layout { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr); gap: 24px; align-items: start; }
+    .thermal-card { min-width: 0; background: white; padding: 24px; border-radius: 16px; box-shadow: 0 8px 24px #173c6910; }
+    .thermal-card h2 { margin: 0 0 20px; font-size: 20px; }
+    .thermal-canvas-wrap { background: #111827; padding: 12px; border-radius: 16px; }
+    #thermalCanvas { width: 100%; height: auto; aspect-ratio: 1; display: block; border-radius: 10px; }
+    .thermal-scale { height: 12px; margin-top: 20px; border-radius: 8px; background: linear-gradient(to right, #0000ff, #0050ff, #ffc800, #ff0000, #fff); border: 1px solid #d0d5dd; }
+    .scale-labels { display: flex; justify-content: space-between; margin-top: 8px; color: #475467; font-size: 14px; }
+    .thermal-row { background: #f6f9fc; border: 1px solid #e4e7ec; border-radius: 12px; padding: 18px; margin-bottom: 14px; }
+    .thermal-row span { display: block; color: #667085; margin-bottom: 8px; }
+    .thermal-row b { font-size: 30px; color: #173c69; }
+    .thermal-status { padding: 14px; border-radius: 10px; background: #e8f7ee; color: #166534; line-height: 1.6; }
+    .thermal-status.offline { background: #fff3e6; color: #92400e; }
+    .thermal-note { font-size: 13px; margin-bottom: 0; }
+    #lastUpdated { overflow-wrap: anywhere; }
+    @media (max-width: 1050px) { .thermal-layout { grid-template-columns: 1fr; } }
+    @media (max-width: 600px) { .thermal-card { padding: 16px; } .top-title { font-size: 15px; } .top-user { padding: 0 10px; font-size: 12px; } }
+  </style>
 </head>
-
 <body>
 
     <header class="topbar">
@@ -255,428 +55,40 @@
             <a href="device.html">สถานะอุปกรณ์</a>
             <a href="settings.html">ตั้งค่าระบบ</a>
             <a href="about.html">เกี่ยวกับ</a>
-            <a class="active" href="servocontrol.html">Servo Control</a>
+            <a class="active" href="servocontrol.html">กล้องความร้อน AMG8833</a>
         </nav>
 
         <div class="sidebar-footer">“ระบบแจ้งเตือนอัจฉริยะ”</div>
     </aside>
 
-    <main class="content">
-        <section class="servo-thermal-layout">
 
-            <div class="servo-card">
-                <h1>Servo Control</h1>
-                <p>ควบคุมกล้องและอ่านค่าอุณหภูมิผ่านระบบ cloud</p>
-
-                <div class="sensor-grid">
-                    <div class="sensor-box">
-                        <div class="sensor-label">ระยะ</div>
-                        <div class="sensor-value"><span id="distanceValue">--</span> mm</div>
-                    </div>
-
-                    <div class="sensor-box">
-                        <div class="sensor-label">อุณหภูมิห้อง DS18B20</div>
-                        <div class="sensor-value"><span id="objectTempValue">--</span> °C</div>
-                    </div>
-
-                    <div class="sensor-box">
-                        <div class="sensor-label">สถานะ Sensor</div>
-                        <div class="sensor-value" id="sensorStatusValue">--</div>
-                    </div>
-                </div>
-
-                <div class="control-pad">
-                    <div class="pad-empty"></div>
-                    <button id="btnUp">▲</button>
-                    <div class="pad-empty"></div>
-
-                    <button id="btnLeft">◀</button>
-                    <button id="btnStop" class="stop">STOP</button>
-                    <button id="btnRight">▶</button>
-
-                    <div class="pad-empty"></div>
-                    <button id="btnDown">▼</button>
-                    <div class="pad-empty"></div>
-                </div>
-
-                <div class="settings-pad">
-                    <div class="setting-group">
-                        <label>ความเร็ว (Speed) <span id="speedDisplay">100%</span></label>
-                        <input type="range" id="sliderSpeed" min="20" max="100" value="100">
-                    </div>
-
-                    <div class="setting-group">
-                        <label>จูนจุดหยุดนิ่ง แกน X (Trim X) <span id="trimXDisplay">0</span></label>
-                        <input type="range" id="sliderTrimX" min="-20" max="20" value="0">
-                    </div>
-
-                    <div class="setting-group">
-                        <label>จูนจุดหยุดนิ่ง แกน Y (Trim Y) <span id="trimYDisplay">0</span></label>
-                        <input type="range" id="sliderTrimY" min="-20" max="20" value="0">
-                    </div>
-                </div>
-
-                <div class="servo-status" id="servoStatus">พร้อมใช้งาน</div>
-            </div>
-
-            <div class="thermal-card">
-                <h2>Thermal Camera</h2>
-                <p>ภาพความร้อน AMG8833 IR 8x8 ขยายเป็น 64x64</p>
-
-                <div class="thermal-canvas-wrap">
-                    <canvas id="thermalCanvas" width="512" height="512"></canvas>
-                </div>
-
-                <div class="thermal-info">
-                    <div class="thermal-row">
-                        <span>Min</span>
-                        <b id="amgMin">-- °C</b>
-                    </div>
-
-                    <div class="thermal-row">
-                        <span>Max</span>
-                        <b id="amgMax">-- °C</b>
-                    </div>
-
-                    <div class="thermal-row">
-                        <span>Center</span>
-                        <b id="amgCenter">-- °C</b>
-                    </div>
-                </div>
-
-                <div class="thermal-status offline" id="thermalStatus">
-                    Waiting for AMG8833
-                </div>
-            </div>
-
-        </section>
-    </main>
-
-    <script src="js/common.js"></script>
-
-    <script>
-        const API_TOKEN = "servo-god-1234";
-
-        const statusEl = document.getElementById("servoStatus");
-        const distanceEl = document.getElementById("distanceValue");
-        const objectTempEl = document.getElementById("objectTempValue");
-        const sensorStatusEl = document.getElementById("sensorStatusValue");
-        const thermalStatusEl = document.getElementById("thermalStatus");
-
-        const sliderSpeed = document.getElementById("sliderSpeed");
-        const sliderTrimX = document.getElementById("sliderTrimX");
-        const sliderTrimY = document.getElementById("sliderTrimY");
-
-        sliderSpeed.addEventListener("input", (e) => {
-            document.getElementById("speedDisplay").textContent = e.target.value + "%";
-        });
-
-        sliderTrimX.addEventListener("input", (e) => {
-            document.getElementById("trimXDisplay").textContent = e.target.value;
-        });
-
-        sliderTrimY.addEventListener("input", (e) => {
-            document.getElementById("trimYDisplay").textContent = e.target.value;
-        });
-
-        let activeButton = null;
-        let heartbeat = null;
-        let activeRequest = null;
-        let lastX = 0;
-        let lastY = 0;
-
-        async function moveCamera(dirX, dirY) {
-            const speed = parseInt(sliderSpeed.value);
-
-            lastX = dirX * speed;
-            lastY = dirY * speed;
-
-            const trimX = parseInt(sliderTrimX.value);
-            const trimY = parseInt(sliderTrimY.value);
-
-            if (activeRequest) {
-                activeRequest.abort();
-            }
-
-            activeRequest = new AbortController();
-
-            try {
-                const res = await fetch("/api/move", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json"
-                    },
-                    signal: activeRequest.signal,
-                    body: JSON.stringify({
-                        token: API_TOKEN,
-                        x: lastX,
-                        y: lastY,
-                        trim_x: trimX,
-                        trim_y: trimY
-                    })
-                });
-
-                if (!res.ok) {
-                    statusEl.textContent = "ส่งคำสั่งไม่สำเร็จ";
-                    return;
-                }
-
-                statusEl.textContent =
-                    (dirX === 0 && dirY === 0)
-                        ? "หยุดแล้ว"
-                        : `กำลังหมุน (X:${lastX}, Y:${lastY})`;
-
-            } catch (err) {
-                if (err.name !== "AbortError") {
-                    statusEl.textContent = "เชื่อมต่อ server ไม่ได้";
-                }
-            }
-        }
-
-        function stopCamera() {
-            if (heartbeat) {
-                clearInterval(heartbeat);
-                heartbeat = null;
-            }
-
-            if (activeButton) {
-                activeButton.classList.remove("pressed");
-                activeButton = null;
-            }
-
-            moveCamera(0, 0);
-        }
-
-        function bindHoldButton(id, dirX, dirY) {
-            const button = document.getElementById(id);
-
-            button.addEventListener("pointerdown", function (event) {
-                event.preventDefault();
-
-                activeButton = button;
-                button.classList.add("pressed");
-                button.setPointerCapture(event.pointerId);
-
-                moveCamera(dirX, dirY);
-
-                if (heartbeat) {
-                    clearInterval(heartbeat);
-                }
-
-                heartbeat = setInterval(function () {
-                    moveCamera(dirX, dirY);
-                }, 250);
-            });
-
-            button.addEventListener("pointerup", stopCamera);
-            button.addEventListener("pointercancel", stopCamera);
-            button.addEventListener("lostpointercapture", stopCamera);
-        }
-
-        async function readSensors() {
-            try {
-                const res = await fetch("/api/sensors", {
-                    cache: "no-store"
-                });
-
-                const data = await res.json();
-
-                distanceEl.textContent =
-                    data.distance_mm >= 0 ? data.distance_mm : "--";
-
-                objectTempEl.textContent =
-                    data.room_temp_c === null || data.room_temp_c === undefined
-                        ? "--"
-                        : Number(data.room_temp_c).toFixed(2);
-
-                sensorStatusEl.textContent = data.sensor_text || "--";
-
-                drawThermal(data);
-
-            } catch (err) {
-                sensorStatusEl.textContent = "offline";
-                drawThermal(null);
-            }
-        }
-
-        function setTempText(id, value) {
-            document.getElementById(id).textContent =
-                value === null || value === undefined
-                    ? "-- °C"
-                    : `${Number(value).toFixed(2)} °C`;
-        }
-
-        function tempToColor(value, min, max) {
-            if (max <= min) {
-                max = min + 1;
-            }
-
-            const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
-
-            let r = 0;
-            let g = 0;
-            let b = 0;
-
-            if (t < 0.25) {
-                const k = t / 0.25;
-                r = 0;
-                g = Math.round(80 * k);
-                b = Math.round(255);
-            } else if (t < 0.5) {
-                const k = (t - 0.25) / 0.25;
-                r = Math.round(255 * k);
-                g = Math.round(80 + 120 * k);
-                b = Math.round(255 * (1 - k));
-            } else if (t < 0.75) {
-                const k = (t - 0.5) / 0.25;
-                r = 255;
-                g = Math.round(200 * (1 - k));
-                b = 0;
-            } else {
-                const k = (t - 0.75) / 0.25;
-                r = 255;
-                g = Math.round(255 * k);
-                b = Math.round(255 * k);
-            }
-
-            return `rgb(${r}, ${g}, ${b})`;
-        }
-
-        function lerp(a, b, t) {
-            return a + (b - a) * t;
-        }
-
-        function getPixelBilinear(pixels, x, y) {
-            const x0 = Math.floor(x);
-            const y0 = Math.floor(y);
-            const x1 = Math.min(x0 + 1, 7);
-            const y1 = Math.min(y0 + 1, 7);
-
-            const tx = x - x0;
-            const ty = y - y0;
-
-            const p00 = Number(pixels[y0 * 8 + x0]);
-            const p10 = Number(pixels[y0 * 8 + x1]);
-            const p01 = Number(pixels[y1 * 8 + x0]);
-            const p11 = Number(pixels[y1 * 8 + x1]);
-
-            const top = lerp(p00, p10, tx);
-            const bottom = lerp(p01, p11, tx);
-
-            return lerp(top, bottom, ty);
-        }
-
-        function drawEmptyThermal(message = "No thermal data") {
-            const canvas = document.getElementById("thermalCanvas");
-            const ctx = canvas.getContext("2d");
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = "#0b1220";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            const cell = canvas.width / 8;
-
-            for (let row = 0; row < 8; row++) {
-                for (let col = 0; col < 8; col++) {
-                    ctx.strokeStyle = "rgba(255,255,255,0.10)";
-                    ctx.strokeRect(col * cell, row * cell, cell, cell);
-                }
-            }
-
-            ctx.fillStyle = "#94a3b8";
-            ctx.font = "22px Arial";
-            ctx.textAlign = "center";
-            ctx.textBaseline = "middle";
-            ctx.fillText(message, canvas.width / 2, canvas.height / 2);
-        }
-
-        function drawThermal(data) {
-            const canvas = document.getElementById("thermalCanvas");
-            const ctx = canvas.getContext("2d");
-
-            if (!data) {
-                drawEmptyThermal("Thermal offline");
-                setTempText("amgMin", null);
-                setTempText("amgMax", null);
-                setTempText("amgCenter", null);
-                thermalStatusEl.textContent = "Thermal offline";
-                thermalStatusEl.classList.add("offline");
-                return;
-            }
-
-            setTempText("amgMin", data.amg_min_temp_c);
-            setTempText("amgMax", data.amg_max_temp_c);
-            setTempText("amgCenter", data.amg_center_temp_c);
-
-            const pixels = Array.isArray(data.amg_pixels)
-                ? data.amg_pixels.map(Number)
-                : [];
-
-            if (pixels.length !== 64 || pixels.some((v) => !Number.isFinite(v))) {
-                drawEmptyThermal("No pixel data");
-
-                thermalStatusEl.textContent =
-                    Number(data.amg_status) === 1
-                        ? "AMG8833 online แต่ยังไม่มี pixel"
-                        : "AMG8833 offline";
-
-                thermalStatusEl.classList.toggle("offline", Number(data.amg_status) !== 1);
-                return;
-            }
-
-            const min = Math.min(...pixels);
-            const max = Math.max(...pixels);
-
-            const renderSize = 64;
-            const cellW = canvas.width / renderSize;
-            const cellH = canvas.height / renderSize;
-
-            ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-            for (let row = 0; row < renderSize; row++) {
-                for (let col = 0; col < renderSize; col++) {
-                    const srcX = (col / (renderSize - 1)) * 7;
-                    const srcY = (row / (renderSize - 1)) * 7;
-
-                    const temp = getPixelBilinear(pixels, srcX, srcY);
-
-                    ctx.fillStyle = tempToColor(temp, min, max);
-                    ctx.fillRect(
-                        Math.floor(col * cellW),
-                        Math.floor(row * cellH),
-                        Math.ceil(cellW),
-                        Math.ceil(cellH)
-                    );
-                }
-            }
-
-            thermalStatusEl.textContent =
-                `AMG8833 online (${min.toFixed(1)} - ${max.toFixed(1)} °C)`;
-
-            thermalStatusEl.classList.remove("offline");
-        }
-
-        bindHoldButton("btnUp", 0, 1);
-        bindHoldButton("btnDown", 0, -1);
-        bindHoldButton("btnLeft", 1, 0);
-        bindHoldButton("btnRight", -1, 0);
-
-        document.getElementById("btnStop").addEventListener("click", stopCamera);
-
-        window.addEventListener("blur", stopCamera);
-
-        document.addEventListener("visibilitychange", function () {
-            if (document.hidden) {
-                stopCamera();
-            }
-        });
-
-        drawEmptyThermal();
-        readSensors();
-
-        setInterval(readSensors, 150);
-    </script>
-
+  <main class="content">
+    <div class="thermal-page">
+      <div class="thermal-heading">
+        <h1>กล้องความร้อน AMG8833</h1>
+        <p>ติดตามภาพความร้อนและอุณหภูมิจากเซ็นเซอร์ 8 × 8 ผ่านระบบ Cloud</p>
+      </div>
+      <section class="thermal-layout" aria-label="ข้อมูล AMG8833">
+        <div class="thermal-card">
+          <h2>ภาพความร้อน</h2>
+          <div class="thermal-canvas-wrap"><canvas id="thermalCanvas" width="512" height="512" role="img" aria-label="ภาพความร้อนจาก AMG8833">ภาพความร้อน โดยมีค่าอุณหภูมิสรุปอยู่ถัดไป</canvas></div>
+          <div class="thermal-scale" aria-hidden="true"></div>
+          <div class="scale-labels"><span id="scaleMin">-- °C</span><span id="scaleMax">-- °C</span></div>
+          <p class="thermal-note">ข้อมูลจริง 64 จุด (8 × 8) ปรับภาพให้เรียบเป็น 64 × 64 เพื่อการแสดงผล สีปรับตามค่าต่ำสุดและสูงสุดของแต่ละภาพ</p>
+        </div>
+        <div class="thermal-card">
+          <h2>อุณหภูมิที่ตรวจวัด</h2>
+          <div class="thermal-row"><span>ต่ำสุด (Min)</span><b id="amgMin">-- °C</b></div>
+          <div class="thermal-row"><span>สูงสุด (Max)</span><b id="amgMax">-- °C</b></div>
+          <div class="thermal-row"><span>กึ่งกลาง (Center)</span><b id="amgCenter">-- °C</b></div>
+          <div class="thermal-status offline" id="thermalStatus" role="status">กำลังรอข้อมูล AMG8833</div>
+          <p class="thermal-note">อัปเดตล่าสุด: <span id="lastUpdated">--</span></p>
+          <p class="thermal-note">ค่ากึ่งกลางเป็นค่าเฉลี่ยของ 4 จุดตรงกลางเซ็นเซอร์</p>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="js/common.js"></script>
+  <script src="js/thermal.js"></script>
 </body>
-
 </html>
