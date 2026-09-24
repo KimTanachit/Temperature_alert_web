@@ -119,6 +119,16 @@ let lastLineAlert = 0;
 let lastDbSave = 0;
 
 const LINE_ALERT_INTERVAL = 30 * 1000;
+const DS_AVERAGE_INTERVAL_MS = Number(process.env.DS_AVERAGE_INTERVAL_MS || 180000);
+const SCAN_STEP_MS = Number(process.env.SCAN_STEP_MS || 3000);
+const HEAT_LOCK_SOURCE = process.env.HEAT_LOCK_SOURCE || "amg_max_temp_c";
+const HEAT_LOCK_THRESHOLD = Number(process.env.HEAT_LOCK_THRESHOLD || NaN);
+const HEAT_UNLOCK_THRESHOLD = Number(process.env.HEAT_UNLOCK_THRESHOLD || NaN);
+
+let dsAverageWindowStartedAt = 0;
+let dsAverageSum = 0;
+let dsAverageCount = 0;
+let dsAverageSeq = 0;
 
 async function loadSettings() {
   const { data, error } = await supabase
@@ -229,16 +239,117 @@ async function saveTemperature(temp, timestamp) {
   lastDbSave = Date.now();
 }
 
-async function saveAlert(temp, lineSent) {
+async function saveAlert(temp, lineSent, threshold = dangerThreshold, message = `อุณหภูมิเกิน ${threshold}°C`) {
   const { error } = await supabase.from("alerts").insert({
     temperature: Number(temp),
-    threshold: dangerThreshold,
+    threshold,
     line_sent: !!lineSent,
-    message: `อุณหภูมิเกิน ${dangerThreshold}°C`,
+    message,
   });
 
   if (error) {
     console.error("[DB] alert save error:", error.message);
+  }
+}
+
+function thermalColor(value, min, max) {
+  const span = max > min ? max - min : 1;
+  const t = Math.max(0, Math.min(1, (Number(value) - min) / span));
+  if (t < 0.25) {
+    const k = t / 0.25;
+    return `rgb(0,${Math.round(80 * k)},255)`;
+  }
+  if (t < 0.5) {
+    const k = (t - 0.25) / 0.25;
+    return `rgb(${Math.round(255 * k)},${Math.round(80 + 120 * k)},${Math.round(255 * (1 - k))})`;
+  }
+  if (t < 0.75) {
+    const k = (t - 0.5) / 0.25;
+    return `rgb(255,${Math.round(200 * (1 - k))},0)`;
+  }
+  const k = (t - 0.75) / 0.25;
+  return `rgb(255,${Math.round(255 * k)},${Math.round(255 * k)})`;
+}
+
+function buildThermalSvg(sensorData) {
+  const pixels = Array.isArray(sensorData.amg_pixels) ? sensorData.amg_pixels.map(Number) : [];
+  if (pixels.length !== 64 || pixels.some((value) => !Number.isFinite(value))) {
+    return null;
+  }
+
+  const min = Math.min(...pixels);
+  const max = Math.max(...pixels);
+  const cells = pixels.map((value, index) => {
+    const x = (index % 8) * 64;
+    const y = Math.floor(index / 8) * 64;
+    return `<rect x="${x}" y="${y}" width="64" height="64" fill="${thermalColor(value, min, max)}"/>`;
+  }).join("");
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="560" viewBox="0 0 512 560">
+  <rect width="512" height="560" fill="#0b1220"/>
+  <g>${cells}</g>
+  <g fill="none" stroke="rgba(255,255,255,0.18)" stroke-width="1">
+    ${Array.from({ length: 9 }, (_, i) => `<path d="M${i * 64} 0V512"/><path d="M0 ${i * 64}H512"/>`).join("")}
+  </g>
+  <text x="20" y="542" fill="#e2e8f0" font-size="24" font-family="Arial">AMG8833 min ${min.toFixed(2)} C / max ${max.toFixed(2)} C</text>
+</svg>`;
+}
+
+async function sendTelegramThermalAlert(sensorData, scanState) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  const chatId = process.env.TELEGRAM_CHAT_ID;
+  if (!token || !chatId) {
+    console.log("[TELEGRAM] ยังไม่ได้ตั้งค่า TELEGRAM_BOT_TOKEN หรือ TELEGRAM_CHAT_ID");
+    return false;
+  }
+
+  const maxTemp = Number(sensorData.amg_max_temp_c);
+  const centerTemp = Number(sensorData.amg_center_temp_c);
+  const dsTemp = Number(sensorData.ds18b20_temp_c);
+  const direction = scanState.currentDirection;
+  const caption = [
+    "ตรวจพบความร้อนจาก AMG8833",
+    `ทิศที่พบ: ${direction.label} (${direction.angle} องศา)`,
+    Number.isFinite(maxTemp) ? `AMG สูงสุด: ${maxTemp.toFixed(2)} C` : null,
+    Number.isFinite(centerTemp) ? `AMG กึ่งกลาง: ${centerTemp.toFixed(2)} C` : null,
+    Number.isFinite(dsTemp) ? `DS18B20: ${dsTemp.toFixed(2)} C` : null,
+    `เกณฑ์ lock: ${scanState.lockThreshold.toFixed(2)} C`,
+  ].filter(Boolean).join("\n");
+
+  const svg = buildThermalSvg(sensorData);
+  try {
+    if (svg && typeof FormData !== "undefined" && typeof Blob !== "undefined") {
+      const form = new FormData();
+      form.append("chat_id", chatId);
+      form.append("caption", caption);
+      form.append("document", new Blob([svg], { type: "image/svg+xml" }), "amg8833-thermal.svg");
+      const response = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+        method: "POST",
+        body: form,
+      });
+      if (!response.ok) {
+        console.error("[TELEGRAM] ส่งภาพไม่สำเร็จ:", await response.text());
+        return false;
+      }
+      console.log("[TELEGRAM] ส่งภาพ AMG8833 แล้ว");
+      return true;
+    }
+
+    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, text: caption }),
+    });
+    if (!response.ok) {
+      console.error("[TELEGRAM] ส่งข้อความไม่สำเร็จ:", await response.text());
+      return false;
+    }
+    console.log("[TELEGRAM] ส่งข้อความแจ้งเตือนแล้ว");
+    return true;
+  } catch (error) {
+    console.error("[TELEGRAM] connection error:", error.message);
+    return false;
   }
 }
 
@@ -632,9 +743,34 @@ app.put("/api/settings", requireAdmin, async (req, res) => {
 // SERVO LONG POLLING
 // =====================================================
 
+const SCAN_DIRECTIONS = [
+  { angle: 0, x: 0, y: 1, label: "หน้า" },
+  { angle: 45, x: 1, y: 1, label: "หน้า-ขวา" },
+  { angle: 90, x: 1, y: 0, label: "ขวา" },
+  { angle: 135, x: 1, y: -1, label: "หลัง-ขวา" },
+  { angle: 180, x: 0, y: -1, label: "หลัง" },
+  { angle: 225, x: -1, y: -1, label: "หลัง-ซ้าย" },
+  { angle: 270, x: -1, y: 0, label: "ซ้าย" },
+  { angle: 315, x: -1, y: 1, label: "หน้า-ซ้าย" },
+];
+
+const scanState = {
+  directionIndex: 0,
+  mode: "scanning",
+  locked: false,
+  lockedAt: null,
+  lockedTemperature: null,
+  telegramSentForLock: false,
+  lockThreshold: Number.isFinite(HEAT_LOCK_THRESHOLD) ? HEAT_LOCK_THRESHOLD : dangerThreshold,
+  unlockThreshold: Number.isFinite(HEAT_UNLOCK_THRESHOLD) ? HEAT_UNLOCK_THRESHOLD : resetThreshold,
+  currentDirection: SCAN_DIRECTIONS[0],
+};
+
 let servoCommand = {
-  x: 0,
-  y: 0,
+  ...SCAN_DIRECTIONS[0],
+  direction_index: 0,
+  mode: "scanning",
+  locked: false,
   updatedAt: Date.now(),
 };
 
@@ -673,57 +809,86 @@ function sendCommandToWaiters() {
   });
 }
 
-// ฟังก์ชันหน่วงเวลา
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// ==========================================
-// ลูป Auto ทำงานด้วยตัวเอง 100%
-// ==========================================
-async function startAutoLoop() {
-  let currentX = 0; // เริ่มที่ตรงกลาง (0)
-  let xDirection = 1; // 1 = หมุนบวก, -1 = หมุนลบ
+function updateServo(directionIndex, mode = scanState.mode) {
+  const direction = SCAN_DIRECTIONS[directionIndex % SCAN_DIRECTIONS.length];
+  scanState.directionIndex = directionIndex % SCAN_DIRECTIONS.length;
+  scanState.currentDirection = direction;
+  scanState.mode = mode;
 
-  // หน่วงเวลาเล็กน้อยก่อนเริ่มลูป เพื่อให้ ESP8266 เชื่อมต่อทันตอนเปิดเซิร์ฟเวอร์
-  await sleep(2000); 
+  servoCommand = {
+    ...direction,
+    direction_index: scanState.directionIndex,
+    mode,
+    locked: scanState.locked,
+    updatedAt: Date.now(),
+  };
+  sendCommandToWaiters();
+}
 
-  while (true) { 
-    // 1. หมุน X ไป 45 องศา
-    currentX += (45 * xDirection);
+function getHeatValue(sensorData) {
+  const value = Number(sensorData?.[HEAT_LOCK_SOURCE]);
+  return Number.isFinite(value) ? value : null;
+}
 
-    // ป้องกันชนขอบ (ส่ายซ้าย-ขวา ระหว่าง -90 ถึง 90)
-    if (currentX > 90) {
-      xDirection = -1;
-      currentX = 45; 
-    } else if (currentX < -90) {
-      xDirection = 1;
-      currentX = -45;
-    }
+async function handleHeatTracking(sensorData) {
+  scanState.lockThreshold = Number.isFinite(HEAT_LOCK_THRESHOLD) ? HEAT_LOCK_THRESHOLD : dangerThreshold;
+  scanState.unlockThreshold = Number.isFinite(HEAT_UNLOCK_THRESHOLD) ? HEAT_UNLOCK_THRESHOLD : resetThreshold;
 
-    // สเตป 1: แกน X ขยับ, Y ตรงกลาง -> ค้าง 2 วิ
-    updateServo(currentX, 0);
-    await sleep(2000);
+  if (Number(sensorData.amg_status) !== 1) return;
+  const heatValue = getHeatValue(sensorData);
+  if (heatValue === null) return;
 
-    // สเตป 2: Y ลง 15 องศา -> ค้าง 2 วิ
-    updateServo(currentX, -15);
-    await sleep(2000);
+  if (!scanState.locked && heatValue >= scanState.lockThreshold) {
+    scanState.locked = true;
+    scanState.mode = "locked";
+    scanState.lockedAt = new Date().toISOString();
+    scanState.lockedTemperature = heatValue;
+    scanState.telegramSentForLock = false;
+    updateServo(scanState.directionIndex, "locked");
+    console.log(
+      `[SCAN] LOCK ${scanState.currentDirection.label} (${scanState.currentDirection.angle}°) heat=${heatValue.toFixed(2)}°C`
+    );
 
-    // สเตป 3: Y ขึ้นไป 30 องศา (อยู่ที่ +15) -> ค้าง 2 วิ
-    updateServo(currentX, 15);
-    await sleep(2000);
+    const telegramSent = await sendTelegramThermalAlert(sensorData, scanState);
+    scanState.telegramSentForLock = telegramSent;
+    await saveAlert(
+      heatValue,
+      telegramSent,
+      scanState.lockThreshold,
+      `Thermal lock ${scanState.currentDirection.label} (${scanState.currentDirection.angle} องศา)`
+    );
+    io.emit("thermal-lock", {
+      temperature: heatValue,
+      direction: scanState.currentDirection,
+      telegram_sent: telegramSent,
+    });
+    return;
+  }
 
-    // สเตป 4: Y กลับมาตรงกลาง -> ค้าง 2 วิ ก่อนเริ่มรอบใหม่
-    updateServo(currentX, 0);
-    await sleep(2000);
+  if (scanState.locked && heatValue <= scanState.unlockThreshold) {
+    console.log(
+      `[SCAN] UNLOCK heat=${heatValue.toFixed(2)}°C <= ${scanState.unlockThreshold.toFixed(2)}°C`
+    );
+    scanState.locked = false;
+    scanState.mode = "scanning";
+    scanState.lockedAt = null;
+    scanState.lockedTemperature = null;
+    scanState.telegramSentForLock = false;
   }
 }
 
-function updateServo(newX, newY) {
-  servoCommand = {
-    x: newX,
-    y: newY,
-    updatedAt: Date.now(),
-  };
-  sendCommandToWaiters(); // ส่งคำสั่งไปให้ ESP8266 ที่รออยู่
+async function startAutoLoop() {
+  await sleep(2000);
+
+  while (true) {
+    if (!scanState.locked) {
+      const nextDirection = (scanState.directionIndex + 1) % SCAN_DIRECTIONS.length;
+      updateServo(nextDirection, "scanning");
+    }
+    await sleep(SCAN_STEP_MS);
+  }
 }
 
 // สั่งให้ลูปทำงานทันทีที่รัน server.js
@@ -766,7 +931,54 @@ app.get("/api/command", (req, res) => {
   res.json(servoCommand);
 });
 
-app.post("/api/sensors", (req, res) => {
+async function recordDS18B20Sample(sensorData) {
+  const dsStatus = Number(sensorData.ds18b20_status);
+  const temperature = Number(sensorData.ds18b20_temp_c ?? sensorData.room_temp_c);
+  if (dsStatus !== 1 || !Number.isFinite(temperature)) return null;
+
+  currentTemperature = temperature;
+  lastSensorSeen = new Date();
+  io.emit("temperature", {
+    temperature,
+    timestamp: lastSensorSeen.toISOString(),
+  });
+
+  if (!dsAverageWindowStartedAt) {
+    dsAverageWindowStartedAt = Date.now();
+  }
+
+  dsAverageSum += temperature;
+  dsAverageCount += 1;
+
+  if (Date.now() - dsAverageWindowStartedAt < DS_AVERAGE_INTERVAL_MS) {
+    return null;
+  }
+
+  const average = dsAverageSum / dsAverageCount;
+  const count = dsAverageCount;
+  const startedAt = new Date(dsAverageWindowStartedAt).toISOString();
+  const endedAt = new Date();
+  dsAverageSeq += 1;
+
+  dsAverageWindowStartedAt = Date.now();
+  dsAverageSum = 0;
+  dsAverageCount = 0;
+
+  await saveTemperature(average, endedAt);
+  console.log(
+    `[DS18B20 AVERAGE] ${average.toFixed(2)}°C from ${count} sample(s), seq=${dsAverageSeq}`
+  );
+
+  return {
+    seq: dsAverageSeq,
+    temperature_c: Number(average.toFixed(2)),
+    sample_count: count,
+    started_at: startedAt,
+    saved_at: endedAt.toISOString(),
+  };
+}
+
+app.post("/api/sensors", async (req, res) => {
   if (req.body.token !== SERVO_API_TOKEN) {
     return res.status(401).json({ error: "bad token" });
   }
@@ -794,15 +1006,35 @@ app.post("/api/sensors", (req, res) => {
     updatedAt: Date.now(),
   };
 
-  res.json({
-    ok: true,
-    sensors: servoSensors,
-    buzzer_config: buzzerSettings.current(),
-  });
+  try {
+    const average_saved = await recordDS18B20Sample(servoSensors);
+    await handleHeatTracking(servoSensors);
+
+    res.json({
+      ok: true,
+      sensors: servoSensors,
+      scan: scanState,
+      command: servoCommand,
+      average_saved,
+      buzzer_config: buzzerSettings.current(),
+    });
+  } catch (error) {
+    console.error("[SENSORS] error:", error.message);
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.get("/api/sensors", (req, res) => {
   res.set("Cache-Control", "no-store").json(servoSensors);
+});
+
+app.get("/api/scan/status", (req, res) => {
+  res.set("Cache-Control", "no-store").json({
+    ...scanState,
+    command: servoCommand,
+    directions: SCAN_DIRECTIONS,
+    heat_source: HEAT_LOCK_SOURCE,
+  });
 });
 
 // =====================================================
