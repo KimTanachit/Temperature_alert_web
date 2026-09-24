@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const path = require("path");
+const zlib = require("zlib");
 const session = require("express-session");
 const { createClient } = require("@supabase/supabase-js");
 const { Server } = require("socket.io");
@@ -296,6 +297,120 @@ function buildThermalSvg(sensorData) {
 </svg>`;
 }
 
+function crc32(buffer) {
+  let crc = 0xffffffff;
+  for (const byte of buffer) {
+    crc ^= byte;
+    for (let i = 0; i < 8; i++) {
+      crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+    }
+  }
+  return (crc ^ 0xffffffff) >>> 0;
+}
+
+function pngChunk(type, data) {
+  const typeBuffer = Buffer.from(type);
+  const length = Buffer.alloc(4);
+  length.writeUInt32BE(data.length, 0);
+  const checksum = Buffer.alloc(4);
+  checksum.writeUInt32BE(crc32(Buffer.concat([typeBuffer, data])), 0);
+  return Buffer.concat([length, typeBuffer, data, checksum]);
+}
+
+function encodePngRgba(width, height, rgba) {
+  const raw = Buffer.alloc((width * 4 + 1) * height);
+  for (let y = 0; y < height; y++) {
+    const rawRow = y * (width * 4 + 1);
+    const rgbaRow = y * width * 4;
+    raw[rawRow] = 0;
+    rgba.copy(raw, rawRow + 1, rgbaRow, rgbaRow + width * 4);
+  }
+
+  const ihdr = Buffer.alloc(13);
+  ihdr.writeUInt32BE(width, 0);
+  ihdr.writeUInt32BE(height, 4);
+  ihdr[8] = 8;
+  ihdr[9] = 6;
+  ihdr[10] = 0;
+  ihdr[11] = 0;
+  ihdr[12] = 0;
+
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    pngChunk("IHDR", ihdr),
+    pngChunk("IDAT", zlib.deflateSync(raw, { level: 9 })),
+    pngChunk("IEND", Buffer.alloc(0)),
+  ]);
+}
+
+function parseRgb(color) {
+  const match = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+  return match ? [Number(match[1]), Number(match[2]), Number(match[3])] : [0, 0, 0];
+}
+
+function lerp(a, b, t) {
+  return a + (b - a) * t;
+}
+
+function getThermalPixelBilinear(pixels, x, y) {
+  const x0 = Math.floor(x);
+  const y0 = Math.floor(y);
+  const x1 = Math.min(x0 + 1, 7);
+  const y1 = Math.min(y0 + 1, 7);
+  const tx = x - x0;
+  const ty = y - y0;
+  const p00 = Number(pixels[y0 * 8 + x0]);
+  const p10 = Number(pixels[y0 * 8 + x1]);
+  const p01 = Number(pixels[y1 * 8 + x0]);
+  const p11 = Number(pixels[y1 * 8 + x1]);
+  return lerp(lerp(p00, p10, tx), lerp(p01, p11, tx), ty);
+}
+
+function buildThermalPng(sensorData) {
+  const pixels = Array.isArray(sensorData.amg_pixels) ? sensorData.amg_pixels.map(Number) : [];
+  if (pixels.length !== 64 || pixels.some((value) => !Number.isFinite(value))) {
+    return null;
+  }
+
+  const width = 512;
+  const height = 512;
+  const border = 10;
+  const radius = 12;
+  const inner = width - border * 2;
+  const min = Math.min(...pixels);
+  const max = Math.max(...pixels);
+  const rgba = Buffer.alloc(width * height * 4);
+
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const index = (y * width + x) * 4;
+      let r = 10;
+      let g = 18;
+      let b = 32;
+      let a = 255;
+
+      const inPanel = x >= border && x < width - border && y >= border && y < height - border;
+      const nearCornerX = x < border + radius ? border + radius - x : x >= width - border - radius ? x - (width - border - radius - 1) : 0;
+      const nearCornerY = y < border + radius ? border + radius - y : y >= height - border - radius ? y - (height - border - radius - 1) : 0;
+      const outsideRoundCorner = nearCornerX > 0 && nearCornerY > 0 && nearCornerX * nearCornerX + nearCornerY * nearCornerY > radius * radius;
+
+      if (inPanel && !outsideRoundCorner) {
+        const gx = ((x - border) / (inner - 1)) * 7;
+        const gy = ((y - border) / (inner - 1)) * 7;
+        const temp = getThermalPixelBilinear(pixels, gx, gy);
+        [r, g, b] = parseRgb(thermalColor(temp, min, max));
+      }
+
+      rgba[index] = r;
+      rgba[index + 1] = g;
+      rgba[index + 2] = b;
+      rgba[index + 3] = a;
+    }
+  }
+
+  return encodePngRgba(width, height, rgba);
+}
+
 async function sendTelegramThermalAlert(sensorData, scanState) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
   const chatId = process.env.TELEGRAM_CHAT_ID;
@@ -317,22 +432,22 @@ async function sendTelegramThermalAlert(sensorData, scanState) {
     `เกณฑ์ lock: ${scanState.lockThreshold.toFixed(2)} C`,
   ].filter(Boolean).join("\n");
 
-  const svg = buildThermalSvg(sensorData);
+  const png = buildThermalPng(sensorData);
   try {
-    if (svg && typeof FormData !== "undefined" && typeof Blob !== "undefined") {
+    if (png && typeof FormData !== "undefined" && typeof Blob !== "undefined") {
       const form = new FormData();
       form.append("chat_id", chatId);
       form.append("caption", caption);
-      form.append("document", new Blob([svg], { type: "image/svg+xml" }), "amg8833-thermal.svg");
-      const response = await fetch(`https://api.telegram.org/bot${token}/sendDocument`, {
+      form.append("photo", new Blob([png], { type: "image/png" }), "amg8833-thermal.png");
+      const response = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
         method: "POST",
         body: form,
       });
       if (!response.ok) {
-        console.error("[TELEGRAM] ส่งภาพไม่สำเร็จ:", await response.text());
+        console.error("[TELEGRAM] ส่งรูป PNG ไม่สำเร็จ:", await response.text());
         return false;
       }
-      console.log("[TELEGRAM] ส่งภาพ AMG8833 แล้ว");
+      console.log("[TELEGRAM] ส่งรูป PNG AMG8833 แล้ว");
       return true;
     }
 
