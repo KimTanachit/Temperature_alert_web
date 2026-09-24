@@ -1037,6 +1037,22 @@ app.get("/api/scan/status", (req, res) => {
   });
 });
 
+app.post("/api/telegram/test", requireAdmin, async (req, res) => {
+  if (Number(servoSensors.amg_status) !== 1) {
+    return res.status(400).json({
+      ok: false,
+      error: "ยังไม่มีข้อมูล AMG8833 ล่าสุดสำหรับส่งทดสอบ",
+    });
+  }
+
+  const sent = await sendTelegramThermalAlert(servoSensors, scanState);
+  res.json({
+    ok: sent,
+    telegram_sent: sent,
+    direction: scanState.currentDirection,
+  });
+});
+
 // =====================================================
 // SOCKET.IO & SERVER LISTEN
 // =====================================================
