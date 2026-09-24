@@ -423,13 +423,24 @@ async function sendTelegramThermalAlert(sensorData, scanState) {
   const centerTemp = Number(sensorData.amg_center_temp_c);
   const dsTemp = Number(sensorData.ds18b20_temp_c);
   const direction = scanState.currentDirection;
+  const alertTime = new Date().toLocaleString("th-TH", {
+    timeZone: "Asia/Bangkok",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
   const caption = [
     "ตรวจพบความร้อนจาก AMG8833",
-    `ทิศที่พบ: ${direction.label} (${direction.angle} องศา)`,
-    Number.isFinite(maxTemp) ? `AMG สูงสุด: ${maxTemp.toFixed(2)} C` : null,
-    Number.isFinite(centerTemp) ? `AMG กึ่งกลาง: ${centerTemp.toFixed(2)} C` : null,
-    Number.isFinite(dsTemp) ? `DS18B20: ${dsTemp.toFixed(2)} C` : null,
-    `เกณฑ์ lock: ${scanState.lockThreshold.toFixed(2)} C`,
+    `เวลาแจ้งเตือน: ${alertTime}`,
+    `ตำแหน่งที่ตรวจพบ: ${direction.label} (${direction.angle}°)`,
+    Number.isFinite(maxTemp) ? `อุณหภูมิสูงสุด AMG8833: ${maxTemp.toFixed(2)}°C` : null,
+    Number.isFinite(centerTemp) ? `อุณหภูมิกึ่งกลาง AMG8833: ${centerTemp.toFixed(2)}°C` : null,
+    Number.isFinite(dsTemp) ? `อุณหภูมิ DS18B20: ${dsTemp.toFixed(2)}°C` : null,
+    `เกณฑ์แจ้งเตือน: ${scanState.lockThreshold.toFixed(2)}°C`,
   ].filter(Boolean).join("\n");
 
   const png = buildThermalPng(sensorData);
