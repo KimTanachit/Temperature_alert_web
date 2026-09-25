@@ -897,8 +897,10 @@ let servoCommand = {
   direction_index: 0,
   mode: "scanning",
   locked: false,
+  home_reset_version: 0,
   updatedAt: Date.now(),
 };
+let servoHomeResetVersion = 0;
 
 // Latest sensor upload from the board, read by Thermal Monitor.
 let servoSensors = {
@@ -948,6 +950,7 @@ function updateServo(directionIndex, mode = scanState.mode) {
     direction_index: scanState.directionIndex,
     mode,
     locked: scanState.locked,
+    home_reset_version: servoHomeResetVersion,
     updatedAt: Date.now(),
   };
   sendCommandToWaiters();
@@ -1055,6 +1058,36 @@ app.get("/api/command", (req, res) => {
     return res.status(401).json({ error: "bad token" });
   }
   res.json(servoCommand);
+});
+
+app.post("/api/scan/home", requireAdmin, (req, res) => {
+  servoHomeResetVersion += 1;
+
+  scanState.directionIndex = 0;
+  scanState.mode = "scanning";
+  scanState.locked = false;
+  scanState.lockedAt = null;
+  scanState.lockedTemperature = null;
+  scanState.telegramSentForLock = false;
+  scanState.currentDirection = SCAN_DIRECTIONS[0];
+
+  servoCommand = {
+    ...SCAN_DIRECTIONS[0],
+    direction_index: 0,
+    mode: "scanning",
+    locked: false,
+    home_reset_version: servoHomeResetVersion,
+    updatedAt: Date.now(),
+  };
+
+  sendCommandToWaiters();
+
+  res.json({
+    ok: true,
+    message: "Servo home reset command sent",
+    home_reset_version: servoHomeResetVersion,
+    command: servoCommand,
+  });
 });
 
 async function recordDS18B20Sample(sensorData) {
