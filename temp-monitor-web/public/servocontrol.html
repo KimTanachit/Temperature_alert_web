@@ -30,12 +30,15 @@
     .alarm-fields .check-label { display: flex; align-items: center; gap: 10px; }
     .alarm-fields input:not([type=checkbox]), .alarm-fields select { width: 100%; min-width: 0; padding: 12px; font: inherit; border: 1px solid #cbd5e1; border-radius: 8px; background: white; }
     .alarm-thresholds { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-    .alarm-fields button, #reloadAlarm { padding: 12px 18px; font: inherit; border: 0; border-radius: 8px; background: #24548e; color: white; cursor: pointer; }
-    .alarm-fields button:disabled { opacity: .5; cursor: wait; }
+    .alarm-fields button, #reloadAlarm, .servo-control button { padding: 12px 18px; font: inherit; border: 0; border-radius: 8px; background: #24548e; color: white; cursor: pointer; }
+    .alarm-fields button:disabled, .servo-control button:disabled { opacity: .5; cursor: wait; }
     #alarmMessage { line-height: 1.7; color: #475467; }
     .buzzer-on { color: #b42318 !important; }
     #stopBuzzer { width: 100%; margin-top: 14px; padding: 14px; border: 0; border-radius: 10px; background: #b42318; color: white; font: inherit; font-weight: bold; cursor: pointer; }
     #stopBuzzer:disabled { opacity: .6; cursor: wait; }
+    .servo-control { margin-top: 14px; display: grid; gap: 10px; }
+    .servo-control button { width: 100%; background: #173c69; font-weight: bold; }
+    .servo-control .thermal-note { margin-top: 0; }
     @media (max-width: 600px) { .alarm-thresholds { grid-template-columns: 1fr; } }
     @media (max-width: 1050px) { .thermal-layout { grid-template-columns: 1fr; } }
     @media (max-width: 600px) { .thermal-card { padding: 16px; } .top-title { font-size: 15px; } .top-user { padding: 0 10px; font-size: 12px; } }
@@ -97,6 +100,11 @@
           <div class="thermal-row"><span>เซ็นเซอร์แท่ง DS18B20</span><b id="dsTemp">-- °C</b><p class="thermal-note" id="dsStatus">กำลังรอข้อมูล</p></div>
           <div class="thermal-row"><span>Buzzer</span><b id="buzzerState">--</b><p class="thermal-note" id="buzzerDetail">กำลังรอข้อมูล</p><button id="stopBuzzer" type="button">หยุดร้อง</button><p class="thermal-note" id="stopMessage" role="status"></p></div>
           <div class="thermal-status offline" id="thermalStatus" role="status">กำลังรอข้อมูล AMG8833</div>
+          <div class="thermal-row servo-control">
+            <span>Servo Home</span>
+            <button id="resetServoHome" type="button">ตั้งตำแหน่งนี้เป็น Home</button>
+            <p class="thermal-note" id="servoHomeMessage" role="status">ใช้เมื่อตำแหน่งหมุนเริ่มเพี้ยนสะสม</p>
+          </div>
           <p class="thermal-note">อัปเดตล่าสุด: <span id="lastUpdated">--</span></p>
           <p class="thermal-note">ค่ากึ่งกลางเป็นค่าเฉลี่ยของ 4 จุดตรงกลางเซ็นเซอร์</p>
         </div>
