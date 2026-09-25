@@ -233,6 +233,53 @@ document.getElementById("stopBuzzer").addEventListener("click", async () => {
     button.disabled = false;
   }
 });
+document.getElementById("resetServoHome").addEventListener("click", async () => {
+  const button = document.getElementById("resetServoHome");
+  const message = document.getElementById("servoHomeMessage");
+  button.disabled = true;
+  message.textContent = "กำลังส่งคำสั่งตั้ง Home…";
+  try {
+    const result = await settingsRequest({method: "POST"}, "/api/scan/home");
+    const versionText = result.home_reset_version ? ` #${result.home_reset_version}` : "";
+    message.textContent = `ส่งคำสั่งแล้ว${versionText} • ESP32 จะถือว่าตำแหน่งปัจจุบันคือทิศ 0`;
+  } catch (error) {
+    message.textContent = "ส่งคำสั่งตั้ง Home ไม่สำเร็จ: " + error.message;
+  } finally {
+    button.disabled = false;
+  }
+});
+async function sendServoControl(path, pendingText, successText) {
+  const buttons = [
+    document.getElementById("startServoScan"),
+    document.getElementById("stopServoScan"),
+    document.getElementById("resetServoHome"),
+  ];
+  const message = document.getElementById("servoHomeMessage");
+  buttons.forEach(button => { button.disabled = true; });
+  message.textContent = pendingText;
+  try {
+    await settingsRequest({method: "POST"}, path);
+    message.textContent = successText;
+  } catch (error) {
+    message.textContent = "ส่งคำสั่งไม่สำเร็จ: " + error.message;
+  } finally {
+    buttons.forEach(button => { button.disabled = false; });
+  }
+}
+document.getElementById("startServoScan").addEventListener("click", () => {
+  sendServoControl(
+    "/api/scan/start",
+    "กำลังส่งคำสั่งเริ่ม Servo…",
+    "ส่งคำสั่งเริ่มแล้ว • Servo จะกลับไปสแกน 8 ทิศ"
+  );
+});
+document.getElementById("stopServoScan").addEventListener("click", () => {
+  sendServoControl(
+    "/api/scan/stop",
+    "กำลังส่งคำสั่งหยุด Servo…",
+    "ส่งคำสั่งหยุดแล้ว • Servo จะค้างตำแหน่งปัจจุบัน"
+  );
+});
 async function readSensors() {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
