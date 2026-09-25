@@ -37,8 +37,12 @@
     #stopBuzzer { width: 100%; margin-top: 14px; padding: 14px; border: 0; border-radius: 10px; background: #b42318; color: white; font: inherit; font-weight: bold; cursor: pointer; }
     #stopBuzzer:disabled { opacity: .6; cursor: wait; }
     .servo-control { margin-top: 14px; display: grid; gap: 10px; }
+    .servo-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
     .servo-control button { width: 100%; background: #173c69; font-weight: bold; }
+    .servo-control #stopServoScan { background: #b42318; }
+    .servo-control #resetServoHome { background: #24548e; }
     .servo-control .thermal-note { margin-top: 0; }
+    @media (max-width: 520px) { .servo-buttons { grid-template-columns: 1fr; } }
     @media (max-width: 600px) { .alarm-thresholds { grid-template-columns: 1fr; } }
     @media (max-width: 1050px) { .thermal-layout { grid-template-columns: 1fr; } }
     @media (max-width: 600px) { .thermal-card { padding: 16px; } .top-title { font-size: 15px; } .top-user { padding: 0 10px; font-size: 12px; } }
@@ -101,7 +105,11 @@
           <div class="thermal-row"><span>Buzzer</span><b id="buzzerState">--</b><p class="thermal-note" id="buzzerDetail">กำลังรอข้อมูล</p><button id="stopBuzzer" type="button">หยุดร้อง</button><p class="thermal-note" id="stopMessage" role="status"></p></div>
           <div class="thermal-status offline" id="thermalStatus" role="status">กำลังรอข้อมูล AMG8833</div>
           <div class="thermal-row servo-control">
-            <span>Servo Home</span>
+            <span>Servo Control</span>
+            <div class="servo-buttons">
+              <button id="startServoScan" type="button">เริ่ม Servo</button>
+              <button id="stopServoScan" type="button">หยุด Servo</button>
+            </div>
             <button id="resetServoHome" type="button">ตั้งตำแหน่งนี้เป็น Home</button>
             <p class="thermal-note" id="servoHomeMessage" role="status">ใช้เมื่อตำแหน่งหมุนเริ่มเพี้ยนสะสม</p>
           </div>
