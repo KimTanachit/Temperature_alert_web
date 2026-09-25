@@ -883,6 +883,7 @@ const SCAN_DIRECTIONS = [
 const scanState = {
   directionIndex: 0,
   mode: "scanning",
+  servoEnabled: true,
   locked: false,
   lockedAt: null,
   lockedTemperature: null,
@@ -896,6 +897,7 @@ let servoCommand = {
   ...SCAN_DIRECTIONS[0],
   direction_index: 0,
   mode: "scanning",
+  servo_enabled: true,
   locked: false,
   home_reset_version: 0,
   updatedAt: Date.now(),
@@ -949,6 +951,7 @@ function updateServo(directionIndex, mode = scanState.mode) {
     ...direction,
     direction_index: scanState.directionIndex,
     mode,
+    servo_enabled: scanState.servoEnabled,
     locked: scanState.locked,
     home_reset_version: servoHomeResetVersion,
     updatedAt: Date.now(),
@@ -970,6 +973,7 @@ async function handleHeatTracking(sensorData) {
   if (heatValue === null) return;
 
   if (!scanState.locked && heatValue >= scanState.lockThreshold) {
+    if (!scanState.servoEnabled) return;
     scanState.locked = true;
     scanState.mode = "locked";
     scanState.lockedAt = new Date().toISOString();
@@ -1012,7 +1016,7 @@ async function startAutoLoop() {
   await sleep(2000);
 
   while (true) {
-    if (!scanState.locked) {
+    if (scanState.servoEnabled && !scanState.locked) {
       const nextDirection = (scanState.directionIndex + 1) % SCAN_DIRECTIONS.length;
       updateServo(nextDirection, "scanning");
     }
@@ -1064,7 +1068,7 @@ app.post("/api/scan/home", requireAdmin, (req, res) => {
   servoHomeResetVersion += 1;
 
   scanState.directionIndex = 0;
-  scanState.mode = "scanning";
+  scanState.mode = scanState.servoEnabled ? "scanning" : "stopped";
   scanState.locked = false;
   scanState.lockedAt = null;
   scanState.lockedTemperature = null;
@@ -1074,7 +1078,8 @@ app.post("/api/scan/home", requireAdmin, (req, res) => {
   servoCommand = {
     ...SCAN_DIRECTIONS[0],
     direction_index: 0,
-    mode: "scanning",
+    mode: scanState.mode,
+    servo_enabled: scanState.servoEnabled,
     locked: false,
     home_reset_version: servoHomeResetVersion,
     updatedAt: Date.now(),
@@ -1086,6 +1091,48 @@ app.post("/api/scan/home", requireAdmin, (req, res) => {
     ok: true,
     message: "Servo home reset command sent",
     home_reset_version: servoHomeResetVersion,
+    command: servoCommand,
+  });
+});
+
+app.post("/api/scan/start", requireAdmin, (req, res) => {
+  scanState.servoEnabled = true;
+  scanState.locked = false;
+  scanState.lockedAt = null;
+  scanState.lockedTemperature = null;
+  scanState.telegramSentForLock = false;
+  updateServo(scanState.directionIndex, "scanning");
+
+  res.json({
+    ok: true,
+    message: "Servo scanning started",
+    command: servoCommand,
+  });
+});
+
+app.post("/api/scan/stop", requireAdmin, (req, res) => {
+  scanState.servoEnabled = false;
+  scanState.mode = "stopped";
+  scanState.locked = false;
+  scanState.lockedAt = null;
+  scanState.lockedTemperature = null;
+  scanState.telegramSentForLock = false;
+
+  servoCommand = {
+    ...scanState.currentDirection,
+    direction_index: scanState.directionIndex,
+    mode: "stopped",
+    servo_enabled: false,
+    locked: false,
+    home_reset_version: servoHomeResetVersion,
+    updatedAt: Date.now(),
+  };
+
+  sendCommandToWaiters();
+
+  res.json({
+    ok: true,
+    message: "Servo stopped",
     command: servoCommand,
   });
 });
