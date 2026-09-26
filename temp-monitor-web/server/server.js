@@ -123,8 +123,6 @@ const LINE_ALERT_INTERVAL = 30 * 1000;
 const DS_AVERAGE_INTERVAL_MS = Number(process.env.DS_AVERAGE_INTERVAL_MS || 180000);
 const SCAN_STEP_MS = Number(process.env.SCAN_STEP_MS || 3000);
 const HEAT_LOCK_SOURCE = process.env.HEAT_LOCK_SOURCE || "amg_max_temp_c";
-const HEAT_LOCK_THRESHOLD = Number(process.env.HEAT_LOCK_THRESHOLD || NaN);
-const HEAT_UNLOCK_THRESHOLD = Number(process.env.HEAT_UNLOCK_THRESHOLD || NaN);
 
 let dsAverageWindowStartedAt = 0;
 let dsAverageSum = 0;
@@ -888,8 +886,8 @@ const scanState = {
   lockedAt: null,
   lockedTemperature: null,
   telegramSentForLock: false,
-  lockThreshold: Number.isFinite(HEAT_LOCK_THRESHOLD) ? HEAT_LOCK_THRESHOLD : dangerThreshold,
-  unlockThreshold: Number.isFinite(HEAT_UNLOCK_THRESHOLD) ? HEAT_UNLOCK_THRESHOLD : resetThreshold,
+  lockThreshold: dangerThreshold,
+  unlockThreshold: resetThreshold,
   currentDirection: SCAN_DIRECTIONS[0],
 };
 
@@ -965,8 +963,8 @@ function getHeatValue(sensorData) {
 }
 
 async function handleHeatTracking(sensorData) {
-  scanState.lockThreshold = Number.isFinite(HEAT_LOCK_THRESHOLD) ? HEAT_LOCK_THRESHOLD : dangerThreshold;
-  scanState.unlockThreshold = Number.isFinite(HEAT_UNLOCK_THRESHOLD) ? HEAT_UNLOCK_THRESHOLD : resetThreshold;
+  scanState.lockThreshold = dangerThreshold;
+  scanState.unlockThreshold = resetThreshold;
 
   if (Number(sensorData.amg_status) !== 1) return;
   const heatValue = getHeatValue(sensorData);
