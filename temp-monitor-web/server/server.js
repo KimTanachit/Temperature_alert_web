@@ -238,13 +238,25 @@ async function saveTemperature(temp, timestamp) {
   lastDbSave = Date.now();
 }
 
-async function saveAlert(temp, lineSent, threshold = dangerThreshold, message = `อุณหภูมิเกิน ${threshold}°C`) {
-  const { error } = await supabase.from("alerts").insert({
+async function saveAlert(temp, lineSent, threshold = dangerThreshold, message = `อุณหภูมิเกิน ${threshold}°C`, extra = {}) {
+  const payload = {
     temperature: Number(temp),
     threshold,
     line_sent: !!lineSent,
     message,
-  });
+    alert_type: extra.alert_type || "temperature",
+    notification_channel: extra.notification_channel || (lineSent ? "line" : "none"),
+    telegram_sent: typeof extra.telegram_sent === "boolean" ? extra.telegram_sent : null,
+    direction_label: extra.direction_label || null,
+    direction_angle: Number.isFinite(Number(extra.direction_angle)) ? Number(extra.direction_angle) : null,
+    heat_source: extra.heat_source || null,
+    amg_min_temp_c: Number.isFinite(Number(extra.amg_min_temp_c)) ? Number(extra.amg_min_temp_c) : null,
+    amg_max_temp_c: Number.isFinite(Number(extra.amg_max_temp_c)) ? Number(extra.amg_max_temp_c) : null,
+    amg_center_temp_c: Number.isFinite(Number(extra.amg_center_temp_c)) ? Number(extra.amg_center_temp_c) : null,
+    ds18b20_temp_c: Number.isFinite(Number(extra.ds18b20_temp_c)) ? Number(extra.ds18b20_temp_c) : null,
+  };
+
+  const { error } = await supabase.from("alerts").insert(payload);
 
   if (error) {
     console.error("[DB] alert save error:", error.message);
@@ -988,7 +1000,19 @@ async function handleHeatTracking(sensorData) {
       heatValue,
       telegramSent,
       scanState.lockThreshold,
-      `Thermal lock ${scanState.currentDirection.label} (${scanState.currentDirection.angle} องศา)`
+      `Thermal lock ${scanState.currentDirection.label} (${scanState.currentDirection.angle} องศา)`,
+      {
+        alert_type: "thermal_lock",
+        notification_channel: "telegram",
+        telegram_sent: telegramSent,
+        direction_label: scanState.currentDirection.label,
+        direction_angle: scanState.currentDirection.angle,
+        heat_source: HEAT_LOCK_SOURCE,
+        amg_min_temp_c: sensorData.amg_min_temp_c,
+        amg_max_temp_c: sensorData.amg_max_temp_c,
+        amg_center_temp_c: sensorData.amg_center_temp_c,
+        ds18b20_temp_c: sensorData.ds18b20_temp_c,
+      }
     );
     io.emit("thermal-lock", {
       temperature: heatValue,
