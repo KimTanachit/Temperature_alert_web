@@ -73,7 +73,7 @@ function render() {
       <td>${formatDate(r.created_at)}</td>
       <td><b>${Number(r.temperature).toFixed(2)}</b></td>
       <td><span class="status-pill danger">${r.alert_type === "thermal_lock" ? "Thermal Lock" : "อันตราย"}</span></td>
-      <td>${sent ? "✅ ส่งแล้ว" : "❌ ไม่สำเร็จ"}<br><small>${channel}</small></td>
+      <td>${sent ? "✅ ส่งแล้ว" : "❌ ไม่สำเร็จ"}<br></td>
       <td>${detail}</td>
     </tr>`;
   }).join("") : `<tr><td colspan="6">ไม่พบข้อมูล</td></tr>`;
