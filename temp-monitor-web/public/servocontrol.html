@@ -42,6 +42,11 @@
     .servo-control #stopServoScan { background: #b42318; }
     .servo-control #resetServoHome { background: #24548e; }
     .servo-control .thermal-note { margin-top: 0; }
+    .servo-thresholds { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .servo-thresholds label { display: grid; gap: 6px; color: #344054; font-size: 13px; }
+    .servo-thresholds input { width: 100%; min-width: 0; padding: 10px; font: inherit; border: 1px solid #cbd5e1; border-radius: 8px; background: white; }
+    #saveServoThresholds { background: #24548e; }
+    @media (max-width: 520px) { .servo-thresholds { grid-template-columns: 1fr; } }
     @media (max-width: 520px) { .servo-buttons { grid-template-columns: 1fr; } }
     @media (max-width: 600px) { .alarm-thresholds { grid-template-columns: 1fr; } }
     @media (max-width: 1050px) { .thermal-layout { grid-template-columns: 1fr; } }
@@ -111,6 +116,13 @@
               <button id="stopServoScan" type="button">หยุด Servo</button>
             </div>
             <button id="resetServoHome" type="button">ตั้งตำแหน่งนี้เป็น Home</button>
+            <form id="servoThresholdForm">
+              <div class="servo-thresholds">
+                <label for="servoLockTemp">หยุดเมื่อถึง (°C)<input id="servoLockTemp" type="number" step="0.01" min="0" max="120" required></label>
+                <label for="servoUnlockTemp">สแกนต่อเมื่อเหลือ (°C)<input id="servoUnlockTemp" type="number" step="0.01" min="0" max="120" required></label>
+              </div>
+              <button id="saveServoThresholds" type="submit">บันทึกอุณหภูมิหยุด Servo</button>
+            </form>
             <p class="thermal-note" id="servoHomeMessage" role="status">ใช้เมื่อตำแหน่งหมุนเริ่มเพี้ยนสะสม</p>
           </div>
           <p class="thermal-note">อัปเดตล่าสุด: <span id="lastUpdated">--</span></p>
