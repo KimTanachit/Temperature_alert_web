@@ -5,6 +5,7 @@ let savedAlarm = null;
 let lastSensorData = null;
 let alarmSaveInProgress = false;
 let requestedStopVersion = 0;
+let servoThresholdSaveInProgress = false;
 function setTempText(id, value) {
   document.getElementById(id).textContent = typeof value === "number" && Number.isFinite(value) ? value.toFixed(2) + " °C" : "-- °C";
 }
@@ -280,6 +281,56 @@ document.getElementById("stopServoScan").addEventListener("click", () => {
     "ส่งคำสั่งหยุดแล้ว • Servo จะค้างตำแหน่งปัจจุบัน"
   );
 });
+async function loadServoThresholdSettings() {
+  const message = document.getElementById("servoHomeMessage");
+  try {
+    const settings = await settingsRequest({}, "/api/settings");
+    document.getElementById("servoLockTemp").value = settings.danger_threshold;
+    document.getElementById("servoUnlockTemp").value = settings.reset_threshold;
+    message.textContent = `หยุดที่ ${settings.danger_threshold}°C • สแกนต่อที่ ${settings.reset_threshold}°C`;
+  } catch (error) {
+    message.textContent = "โหลดค่าอุณหภูมิหยุด Servo ไม่สำเร็จ: " + error.message;
+  }
+}
+document.getElementById("servoThresholdForm").addEventListener("submit", async event => {
+  event.preventDefault();
+  if (servoThresholdSaveInProgress) return;
+
+  const lockTemp = Number(document.getElementById("servoLockTemp").value);
+  const unlockTemp = Number(document.getElementById("servoUnlockTemp").value);
+  const message = document.getElementById("servoHomeMessage");
+
+  if (!Number.isFinite(lockTemp) || !Number.isFinite(unlockTemp)) {
+    message.textContent = "กรุณากรอกอุณหภูมิให้ถูกต้อง";
+    return;
+  }
+
+  if (unlockTemp >= lockTemp) {
+    message.textContent = "ค่าเริ่มสแกนต่อควรต่ำกว่าค่าหยุด Servo";
+    return;
+  }
+
+  servoThresholdSaveInProgress = true;
+  document.getElementById("saveServoThresholds").disabled = true;
+  message.textContent = "กำลังบันทึกอุณหภูมิหยุด Servo…";
+
+  try {
+    const settings = await settingsRequest({
+      method: "PUT",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        danger_threshold: lockTemp,
+        reset_threshold: unlockTemp,
+      }),
+    }, "/api/settings");
+    message.textContent = `บันทึกแล้ว • หยุดที่ ${settings.danger_threshold}°C • สแกนต่อที่ ${settings.reset_threshold}°C`;
+  } catch (error) {
+    message.textContent = "บันทึกอุณหภูมิหยุด Servo ไม่สำเร็จ: " + error.message;
+  } finally {
+    servoThresholdSaveInProgress = false;
+    document.getElementById("saveServoThresholds").disabled = false;
+  }
+});
 async function readSensors() {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 5000);
@@ -300,3 +351,4 @@ async function readSensors() {
 showUnavailable("กำลังรอข้อมูล AMG8833");
 readSensors();
 loadAlarmSettings();
+loadServoThresholdSettings();
