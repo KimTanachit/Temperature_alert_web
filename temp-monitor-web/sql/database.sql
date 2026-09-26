@@ -19,9 +19,30 @@ CREATE TABLE IF NOT EXISTS alerts (
   temperature NUMERIC(6,2) NOT NULL,
   threshold NUMERIC(6,2) NOT NULL,
   line_sent BOOLEAN NOT NULL DEFAULT FALSE,
+  telegram_sent BOOLEAN,
+  alert_type TEXT NOT NULL DEFAULT 'temperature',
+  notification_channel TEXT NOT NULL DEFAULT 'line',
+  direction_label TEXT,
+  direction_angle INTEGER,
+  heat_source TEXT,
+  amg_min_temp_c NUMERIC(6,2),
+  amg_max_temp_c NUMERIC(6,2),
+  amg_center_temp_c NUMERIC(6,2),
+  ds18b20_temp_c NUMERIC(6,2),
   message TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS telegram_sent BOOLEAN;
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS alert_type TEXT NOT NULL DEFAULT 'temperature';
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS notification_channel TEXT NOT NULL DEFAULT 'line';
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS direction_label TEXT;
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS direction_angle INTEGER;
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS heat_source TEXT;
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS amg_min_temp_c NUMERIC(6,2);
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS amg_max_temp_c NUMERIC(6,2);
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS amg_center_temp_c NUMERIC(6,2);
+ALTER TABLE alerts ADD COLUMN IF NOT EXISTS ds18b20_temp_c NUMERIC(6,2);
 
 CREATE INDEX IF NOT EXISTS idx_alerts_created_at
   ON alerts (created_at);
