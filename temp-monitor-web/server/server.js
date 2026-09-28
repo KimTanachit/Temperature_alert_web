@@ -421,11 +421,80 @@ function buildThermalPng(sensorData) {
   return encodePngRgba(width, height, rgba);
 }
 
+async function getTelegramRecipients() {
+  const ids = new Set();
+
+  if (process.env.TELEGRAM_CHAT_ID) {
+    ids.add(String(process.env.TELEGRAM_CHAT_ID).trim());
+  }
+
+  const { data, error } = await supabase
+    .from("telegram_subscribers")
+    .select("chat_id")
+    .eq("is_active", true);
+
+  if (error) {
+    console.error("[TELEGRAM] subscriber load error:", error.message);
+  } else {
+    (data || []).forEach((row) => {
+      if (row.chat_id) ids.add(String(row.chat_id).trim());
+    });
+  }
+
+  return [...ids].filter(Boolean);
+}
+
+async function saveTelegramSubscriber(message) {
+  const chat = message?.chat;
+  if (!chat?.id) return null;
+
+  const from = message.from || {};
+  const payload = {
+    chat_id: chat.id,
+    first_name: from.first_name || chat.first_name || null,
+    username: from.username || chat.username || null,
+    chat_type: chat.type || "private",
+    is_active: true,
+    last_seen_at: new Date().toISOString(),
+  };
+
+  const { data, error } = await supabase
+    .from("telegram_subscribers")
+    .upsert(payload, { onConflict: "chat_id" })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("[TELEGRAM] subscriber save error:", error.message);
+    return null;
+  }
+
+  return data;
+}
+
+async function sendTelegramText(chatId, text) {
+  const token = process.env.TELEGRAM_BOT_TOKEN;
+  if (!token || !chatId) return false;
+
+  const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ chat_id: chatId, text }),
+  });
+
+  if (!response.ok) {
+    console.error("[TELEGRAM] sendMessage failed:", await response.text());
+    return false;
+  }
+
+  return true;
+}
+
 async function sendTelegramThermalAlert(sensorData, scanState) {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  const chatId = process.env.TELEGRAM_CHAT_ID;
-  if (!token || !chatId) {
-    console.log("[TELEGRAM] ยังไม่ได้ตั้งค่า TELEGRAM_BOT_TOKEN หรือ TELEGRAM_CHAT_ID");
+  const chatIds = await getTelegramRecipients();
+  if (!token || chatIds.length === 0) {
+    console.log("[TELEGRAM] ยังไม่ได้ตั้งค่า TELEGRAM_BOT_TOKEN หรือยังไม่มีผู้รับแจ้งเตือน");
     return false;
   }
 
@@ -455,34 +524,32 @@ async function sendTelegramThermalAlert(sensorData, scanState) {
 
   const png = buildThermalPng(sensorData);
   try {
-    if (png && typeof FormData !== "undefined" && typeof Blob !== "undefined") {
-      const form = new FormData();
-      form.append("chat_id", chatId);
-      form.append("caption", caption);
-      form.append("photo", new Blob([png], { type: "image/png" }), "amg8833-thermal.png");
-      const response = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
-        method: "POST",
-        body: form,
-      });
-      if (!response.ok) {
-        console.error("[TELEGRAM] ส่งรูป PNG ไม่สำเร็จ:", await response.text());
-        return false;
+    let sentCount = 0;
+
+    for (const chatId of chatIds) {
+      if (png && typeof FormData !== "undefined" && typeof Blob !== "undefined") {
+        const form = new FormData();
+        form.append("chat_id", chatId);
+        form.append("caption", caption);
+        form.append("photo", new Blob([png], { type: "image/png" }), "amg8833-thermal.png");
+        const response = await fetch(`https://api.telegram.org/bot${token}/sendPhoto`, {
+          method: "POST",
+          body: form,
+        });
+        if (!response.ok) {
+          console.error(`[TELEGRAM] ส่งรูป PNG ไม่สำเร็จ chat=${chatId}:`, await response.text());
+          continue;
+        }
+        sentCount += 1;
+        continue;
       }
-      console.log("[TELEGRAM] ส่งรูป PNG AMG8833 แล้ว");
-      return true;
+
+      const ok = await sendTelegramText(chatId, caption);
+      if (ok) sentCount += 1;
     }
 
-    const response = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ chat_id: chatId, text: caption }),
-    });
-    if (!response.ok) {
-      console.error("[TELEGRAM] ส่งข้อความไม่สำเร็จ:", await response.text());
-      return false;
-    }
-    console.log("[TELEGRAM] ส่งข้อความแจ้งเตือนแล้ว");
-    return true;
+    console.log(`[TELEGRAM] ส่งแจ้งเตือนแล้ว ${sentCount}/${chatIds.length} chat(s)`);
+    return sentCount > 0;
   } catch (error) {
     console.error("[TELEGRAM] connection error:", error.message);
     return false;
@@ -1263,6 +1330,38 @@ app.get("/api/scan/status", (req, res) => {
     directions: SCAN_DIRECTIONS,
     heat_source: HEAT_LOCK_SOURCE,
   });
+});
+
+app.post("/api/telegram/webhook", async (req, res) => {
+  try {
+    const message = req.body?.message || req.body?.edited_message;
+    if (!message?.chat?.id) {
+      return res.json({ ok: true, ignored: true });
+    }
+
+    const subscriber = await saveTelegramSubscriber(message);
+    if (subscriber) {
+      await sendTelegramText(
+        message.chat.id,
+        "สมัครรับแจ้งเตือนความร้อนเรียบร้อยแล้ว\nถ้าระบบตรวจพบความร้อน บอทจะส่งภาพจาก AMG8833 มาให้ที่แชทนี้"
+      );
+    }
+
+    res.json({ ok: true, subscribed: !!subscriber });
+  } catch (error) {
+    console.error("[TELEGRAM] webhook error:", error.message);
+    res.status(500).json({ ok: false, error: error.message });
+  }
+});
+
+app.get("/api/telegram/subscribers", requireAdmin, async (req, res) => {
+  const { data, error } = await supabase
+    .from("telegram_subscribers")
+    .select("*")
+    .order("last_seen_at", { ascending: false });
+
+  if (error) return res.status(500).json({ error: error.message });
+  res.json(data || []);
 });
 
 app.post("/api/telegram/test", requireAdmin, async (req, res) => {
