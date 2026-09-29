@@ -980,6 +980,7 @@ let servoCommand = {
   updatedAt: Date.now(),
 };
 let servoHomeResetVersion = 0;
+let scanStepDirection = 1; // 1: 0 -> 7, -1: 7 -> 0
 
 // Latest sensor upload from the board, read by Thermal Monitor.
 let servoSensors = {
@@ -1106,7 +1107,12 @@ async function startAutoLoop() {
 
   while (true) {
     if (scanState.servoEnabled && !scanState.locked) {
-      const nextDirection = (scanState.directionIndex + 1) % SCAN_DIRECTIONS.length;
+      if (scanState.directionIndex >= SCAN_DIRECTIONS.length - 1) {
+        scanStepDirection = -1;
+      } else if (scanState.directionIndex <= 0) {
+        scanStepDirection = 1;
+      }
+      const nextDirection = scanState.directionIndex + scanStepDirection;
       updateServo(nextDirection, "scanning");
     }
     await sleep(SCAN_STEP_MS);
@@ -1155,6 +1161,7 @@ app.get("/api/command", (req, res) => {
 
 app.post("/api/scan/home", requireAdmin, (req, res) => {
   servoHomeResetVersion += 1;
+  scanStepDirection = 1;
 
   scanState.directionIndex = 0;
   scanState.mode = scanState.servoEnabled ? "scanning" : "stopped";
